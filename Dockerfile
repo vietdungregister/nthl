@@ -102,12 +102,18 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 #    Cần để Prisma Client chạy được trong container
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 
+# 5. Prisma schema + migrations (cần cho prisma migrate deploy)
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+
 # ── KHÔNG copy những thứ sau ─────────────────────────────
 # ✗ node_modules/         (standalone đã có đủ deps cần thiết)
 # ✗ src/                  (source code không cần cho runtime)
-# ✗ prisma/seed*.{js,cjs} (chỉ dùng khi setup, không cần runtime)
 # ✗ .env                  (inject qua docker-compose environment)
 # ─────────────────────────────────────────────────────────
+
+# Tạo home directory cho nextjs user (npm/npx cần ghi vào HOME)
+RUN mkdir -p /home/nextjs && chown nextjs:nodejs /home/nextjs
+ENV HOME=/home/nextjs
 
 USER nextjs
 

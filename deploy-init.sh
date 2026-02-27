@@ -18,7 +18,7 @@ sleep 5
 # Chạy Prisma migrations
 echo ""
 echo "⏳ Running Prisma migrations..."
-docker compose exec -T app npx prisma migrate deploy
+docker compose exec -T app node_modules/.bin/prisma migrate deploy
 echo "✅ Migrations complete!"
 
 # Seed database (genres, admin account, author profile, sample works)
