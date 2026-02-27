@@ -31,13 +31,16 @@ export default function SidebarNav({ genres, genreCounts, books, totalAllWorks }
         <span>📋 Tất cả</span>
         <span className="works-sidebar__count">{totalAllWorks}</span>
       </Link>
-      {genreCounts.map(g => (
-        <Link key={g.genre} href={`/tac-pham?genre=${g.genre}`}
-          className={`works-sidebar__nav-item${currentGenre === g.genre ? ' active' : ''}`}>
-          <span>{getEmoji(g.genre)} {getLabel(g.genre)}</span>
-          <span className="works-sidebar__count">{g._count}</span>
-        </Link>
-      ))}
+      {genres.map(g => {
+        const count = genreCounts.find(gc => gc.genre === g.value)?._count ?? 0
+        return (
+          <Link key={g.value} href={`/tac-pham?genre=${g.value}`}
+            className={`works-sidebar__nav-item${currentGenre === g.value ? ' active' : ''}`}>
+            <span>{g.emoji} {g.label}</span>
+            <span className="works-sidebar__count">{count}</span>
+          </Link>
+        )
+      })}
       <SachAccordion books={books} isActive={isSach} />
     </nav>
   )

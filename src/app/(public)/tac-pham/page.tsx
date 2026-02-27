@@ -77,45 +77,77 @@ export default async function WorksPage({ searchParams }: Props) {
             )}
 
             {works.length > 0 ? (
-                <div className="feed-layout" style={{ padding: '0', maxWidth: 'none' }}>
-                    {works.map((work: { id: string; slug: string; genre: string; title: string; content: string; coverImageUrl: string | null; publishedAt: Date | null; isFeatured: boolean; tags: { tagId: string; tag: { name: string; slug: string } }[] }) => (
-                        <article key={work.id} className="feed-card">
-                            <div className="feed-card__header">
-                                <span className="feed-card__genre">{getLabel(work.genre)}</span>
-                                {work.isFeatured && <span className="poem-card__star">Nổi bật</span>}
-                                {work.publishedAt && <span className="feed-card__date">{formatDate(work.publishedAt)}</span>}
-                            </div>
-                            {work.title && <Link href={`/tac-pham/${work.slug}`} className="feed-card__title">{work.title}</Link>}
-
-                            {VISUAL_GENRES.includes(work.genre) && work.coverImageUrl && (
-                                <div style={{ marginBottom: 12, borderRadius: 10, overflow: 'hidden' }}>
-                                    {(work.genre === 'video' || work.coverImageUrl.match(/\.(mp4|webm|ogg|mov)$/i)) ? (
-                                        <video src={work.coverImageUrl} controls muted playsInline style={{ width: '100%', maxHeight: 420, objectFit: 'cover', background: '#000' }} />
+                genre && VISUAL_GENRES.includes(genre) ? (
+                    /* Instagram-style grid for photo/video/painting genres */
+                    <div className="insta-grid">
+                        {works.map((work: { id: string; slug: string; genre: string; title: string; content: string; coverImageUrl: string | null; publishedAt: Date | null; isFeatured: boolean; tags: { tagId: string; tag: { name: string; slug: string } }[] }) => {
+                            const isVideo = work.genre === 'video' || (work.coverImageUrl && work.coverImageUrl.match(/\.(mp4|webm|ogg|mov)$/i))
+                            return (
+                                <Link key={work.id} href={`/tac-pham/${work.slug}`} className="insta-grid__item">
+                                    {work.coverImageUrl ? (
+                                        isVideo ? (
+                                            <>
+                                                <video src={work.coverImageUrl} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                <div className="insta-grid__video-badge">▶</div>
+                                            </>
+                                        ) : (
+                                            <img src={work.coverImageUrl} alt={work.title || 'Ảnh'} />
+                                        )
                                     ) : (
-                                        <Link href={`/tac-pham/${work.slug}`}>
-                                            <img src={work.coverImageUrl} alt={work.title} style={{ width: '100%', maxHeight: 420, objectFit: 'cover' }} />
-                                        </Link>
+                                        <div className="insta-grid__placeholder">
+                                            <span>{work.genre === 'video' ? '🎬' : work.genre === 'painting' ? '🎨' : '📷'}</span>
+                                            <span className="insta-grid__placeholder-title">{work.title || (work.genre === 'video' ? 'Video' : 'Ảnh')}</span>
+                                        </div>
                                     )}
+                                    <div className="insta-grid__overlay">
+                                        <span>{work.title || work.content?.slice(0, 40) || ''}</span>
+                                    </div>
+                                </Link>
+                            )
+                        })}
+                    </div>
+                ) : (
+                    /* Feed layout for text genres or mixed view */
+                    <div className="feed-layout" style={{ padding: '0', maxWidth: 'none' }}>
+                        {works.map((work: { id: string; slug: string; genre: string; title: string; content: string; coverImageUrl: string | null; publishedAt: Date | null; isFeatured: boolean; tags: { tagId: string; tag: { name: string; slug: string } }[] }) => (
+                            <article key={work.id} className="feed-card">
+                                <div className="feed-card__header">
+                                    <span className="feed-card__genre">{getLabel(work.genre)}</span>
+                                    {work.isFeatured && <span className="poem-card__star">Nổi bật</span>}
+                                    {work.publishedAt && <span className="feed-card__date">{formatDate(work.publishedAt)}</span>}
                                 </div>
-                            )}
+                                {work.title && <Link href={`/tac-pham/${work.slug}`} className="feed-card__title">{work.title}</Link>}
 
-                            {!VISUAL_GENRES.includes(work.genre) && work.content && (
-                                <ExpandableContent content={work.content} limit={500} className={work.genre === 'poem' ? 'feed-card__poem' : 'feed-card__prose'} />
-                            )}
-                            {VISUAL_GENRES.includes(work.genre) && work.content && (
-                                <ExpandableContent content={work.content} limit={200} className="feed-card__prose" />
-                            )}
+                                {VISUAL_GENRES.includes(work.genre) && work.coverImageUrl && (
+                                    <div style={{ marginBottom: 12, borderRadius: 10, overflow: 'hidden' }}>
+                                        {(work.genre === 'video' || work.coverImageUrl.match(/\.(mp4|webm|ogg|mov)$/i)) ? (
+                                            <video src={work.coverImageUrl} controls muted playsInline style={{ width: '100%', maxHeight: 420, objectFit: 'cover', background: '#000' }} />
+                                        ) : (
+                                            <Link href={`/tac-pham/${work.slug}`}>
+                                                <img src={work.coverImageUrl} alt={work.title} style={{ width: '100%', maxHeight: 420, objectFit: 'cover' }} />
+                                            </Link>
+                                        )}
+                                    </div>
+                                )}
 
-                            {work.tags.length > 0 && (
-                                <div className="feed-card__tags">
-                                    {work.tags.slice(0, 3).map((wt: { tagId: string; tag: { name: string; slug: string } }) => (
-                                        <Link key={wt.tagId} href={`/tac-pham?tag=${wt.tag.slug}`} className="tag-pill">{wt.tag.name}</Link>
-                                    ))}
-                                </div>
-                            )}
-                        </article>
-                    ))}
-                </div>
+                                {!VISUAL_GENRES.includes(work.genre) && work.content && (
+                                    <ExpandableContent content={work.content} limit={500} className={work.genre === 'poem' ? 'feed-card__poem' : 'feed-card__prose'} />
+                                )}
+                                {VISUAL_GENRES.includes(work.genre) && work.content && (
+                                    <ExpandableContent content={work.content} limit={200} className="feed-card__prose" />
+                                )}
+
+                                {work.tags.length > 0 && (
+                                    <div className="feed-card__tags">
+                                        {work.tags.slice(0, 3).map((wt: { tagId: string; tag: { name: string; slug: string } }) => (
+                                            <Link key={wt.tagId} href={`/tac-pham?tag=${wt.tag.slug}`} className="tag-pill">{wt.tag.name}</Link>
+                                        ))}
+                                    </div>
+                                )}
+                            </article>
+                        ))}
+                    </div>
+                )
             ) : (
                 <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '60px 0', fontSize: 14 }}>
                     Không tìm thấy tác phẩm nào.

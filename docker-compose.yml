@@ -21,8 +21,8 @@ services:
       POSTGRES_PASSWORD: vibe_pass
       POSTGRES_DB: vibe_db
     ports:
-      # Map ra localhost:5432 để dùng tool như TablePlus/DBeaver khi cần
-      - "5432:5432"
+      # Map ra localhost:5433 (tránh conflict với PostgreSQL local trên 5432)
+      - "5433:5432"
     volumes:
       # Named volume giữ data bền vững, không mất khi restart container
       - pgdata:/var/lib/postgresql/data

@@ -64,21 +64,31 @@ export default async function GenrePage({ params, searchParams }: Props) {
             {isVisual ? (
                 /* Instagram-style grid for photo/video/painting */
                 <div className="insta-grid">
-                    {works.map(w => (
-                        <Link key={w.id} href={`/tac-pham/${w.slug}`} className="insta-grid__item">
-                            {w.coverImageUrl ? (
-                                <img src={w.coverImageUrl} alt={w.title} />
-                            ) : (
-                                <div className="insta-grid__placeholder">
-                                    <span>{genre === 'video' ? '🎬' : genre === 'painting' ? '🎨' : '📷'}</span>
-                                    <span className="insta-grid__placeholder-title">{w.title}</span>
+                    {works.map(w => {
+                        const isVideo = w.genre === 'video' || (w.coverImageUrl && w.coverImageUrl.match(/\.(mp4|webm|ogg|mov)$/i))
+                        return (
+                            <Link key={w.id} href={`/tac-pham/${w.slug}`} className="insta-grid__item">
+                                {w.coverImageUrl ? (
+                                    isVideo ? (
+                                        <>
+                                            <video src={w.coverImageUrl} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            <div className="insta-grid__video-badge">▶</div>
+                                        </>
+                                    ) : (
+                                        <img src={w.coverImageUrl} alt={w.title || 'Ảnh'} />
+                                    )
+                                ) : (
+                                    <div className="insta-grid__placeholder">
+                                        <span>{genre === 'video' ? '🎬' : genre === 'painting' ? '🎨' : '📷'}</span>
+                                        <span className="insta-grid__placeholder-title">{w.title || (genre === 'video' ? 'Video' : 'Ảnh')}</span>
+                                    </div>
+                                )}
+                                <div className="insta-grid__overlay">
+                                    <span>{w.title || w.content?.slice(0, 40) || ''}</span>
                                 </div>
-                            )}
-                            <div className="insta-grid__overlay">
-                                <span>{w.title}</span>
-                            </div>
-                        </Link>
-                    ))}
+                            </Link>
+                        )
+                    })}
                 </div>
             ) : (
                 /* Feed layout for text genres */

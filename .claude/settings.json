@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git add -A)"
+      "Bash(git add -A)",
+      "Bash(git reset HEAD .claude/settings.local.json)",
+      "Bash(git remote add origin https://github.com/vietdungregister/nthl.git)",
+      "Bash(git commit:*)",
+      "Bash(git push -u origin master)",
+      "Bash(git add Dockerfile deploy-init.sh)",
+      "Bash(git push)",
+      "Bash(git add src/lib/auth.ts)",
+      "Bash(git add .claude/settings.json .gitignore docker-compose.yml prisma/schema.prisma src/app/ src/components/ src/lib/)"
     ]
   }
 }

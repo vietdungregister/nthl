@@ -48,7 +48,9 @@ export default async function WorkDetailPage({ params }: Props) {
                 </div>
 
                 <div className="reading-card">
-                    <div className="reading-card__title">{work.title}</div>
+                    {work.title && !work.title.startsWith('Ảnh —') && !work.title.startsWith('Video —') && (
+                        <div className="reading-card__title">{work.title}</div>
+                    )}
 
                     {/* Display image/video for visual genres */}
                     {isVisualGenre && work.coverImageUrl && (

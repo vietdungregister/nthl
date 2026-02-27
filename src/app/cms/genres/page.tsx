@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react'
 
-interface Genre { id: string; value: string; label: string; emoji: string; order: number }
+interface Genre { id: string; value: string; label: string; emoji: string; order: number; showInSidebar: boolean }
 
 export default function GenresPage() {
     const [genres, setGenres] = useState<Genre[]>([])
     const [loading, setLoading] = useState(true)
     const [editId, setEditId] = useState<string | null>(null)
-    const [form, setForm] = useState({ value: '', label: '', emoji: '📝', order: 0 })
+    const [form, setForm] = useState({ value: '', label: '', emoji: '📝', order: 0, showInSidebar: true })
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState('')
 
@@ -22,11 +22,11 @@ export default function GenresPage() {
 
     useEffect(() => { fetchGenres() }, [])
 
-    const resetForm = () => { setForm({ value: '', label: '', emoji: '📝', order: 0 }); setEditId(null); setError('') }
+    const resetForm = () => { setForm({ value: '', label: '', emoji: '📝', order: 0, showInSidebar: true }); setEditId(null); setError('') }
 
     const startEdit = (g: Genre) => {
         setEditId(g.id)
-        setForm({ value: g.value, label: g.label, emoji: g.emoji, order: g.order })
+        setForm({ value: g.value, label: g.label, emoji: g.emoji, order: g.order, showInSidebar: g.showInSidebar })
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -60,7 +60,7 @@ export default function GenresPage() {
             <form onSubmit={handleSubmit} style={{ background: 'white', border: '1px solid #F3F4F6', borderRadius: 12, padding: 20, marginBottom: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
                 <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1F2937', marginBottom: 14 }}>{editId ? 'Chỉnh sửa thể loại' : 'Thêm thể loại mới'}</h3>
                 {error && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '8px 12px', color: '#DC2626', fontSize: 12, marginBottom: 12 }}>{error}</div>}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px 80px auto', gap: 12, alignItems: 'end' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px 80px auto auto', gap: 12, alignItems: 'end' }}>
                     <label>
                         <span style={labelStyle}>Giá trị (value)</span>
                         <input value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} required placeholder="poem" style={{ ...inputStyle, width: '100%' }} disabled={!!editId} />
@@ -76,6 +76,10 @@ export default function GenresPage() {
                     <label>
                         <span style={labelStyle}>Thứ tự</span>
                         <input type="number" value={form.order} onChange={e => setForm({ ...form, order: parseInt(e.target.value) || 0 })} style={{ ...inputStyle, width: '100%' }} />
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, paddingBottom: 4 }}>
+                        <input type="checkbox" checked={form.showInSidebar} onChange={e => setForm({ ...form, showInSidebar: e.target.checked })} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                        <span style={{ ...labelStyle, marginBottom: 0 }}>Sidebar</span>
                     </label>
                     <div style={{ display: 'flex', gap: 8 }}>
                         <button type="submit" disabled={saving} style={{ padding: '8px 18px', background: saving ? '#9CA3AF' : '#1F2937', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: saving ? 'default' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
@@ -95,20 +99,22 @@ export default function GenresPage() {
                             <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Giá trị</th>
                             <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Nhãn</th>
                             <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Thứ tự</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600, color: '#374151' }}>Sidebar</th>
                             <th style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#374151' }}>Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan={5} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>Đang tải...</td></tr>
+                            <tr><td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>Đang tải...</td></tr>
                         ) : genres.length === 0 ? (
-                            <tr><td colSpan={5} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>Chưa có thể loại nào. Hãy thêm mới!</td></tr>
+                            <tr><td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>Chưa có thể loại nào. Hãy thêm mới!</td></tr>
                         ) : genres.map(g => (
                             <tr key={g.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
                                 <td style={{ padding: '12px 16px', fontSize: 18 }}>{g.emoji}</td>
                                 <td style={{ padding: '12px 16px', fontFamily: 'monospace', color: '#6B7280' }}>{g.value}</td>
                                 <td style={{ padding: '12px 16px', fontWeight: 600 }}>{g.label}</td>
                                 <td style={{ padding: '12px 16px', color: '#6B7280' }}>{g.order}</td>
+                                <td style={{ padding: '12px 16px', textAlign: 'center' }}>{g.showInSidebar ? '✅' : '❌'}</td>
                                 <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                                     <button onClick={() => startEdit(g)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3B82F6', fontSize: 12, marginRight: 12 }}>Sửa</button>
                                     <button onClick={() => handleDelete(g.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 12 }}>Xóa</button>

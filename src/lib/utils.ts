@@ -39,6 +39,14 @@ export const GENRES = [
 
 export type Genre = (typeof GENRES)[number]['value']
 
+// 3 special genres: always hardcoded, always present
+export const VISUAL_GENRES = ['photo', 'video'] as const
+export const SPECIAL_GENRES = ['photo', 'video'] as const
+
+export function isMediaGenre(genre: string): boolean {
+    return genre === 'photo' || genre === 'video'
+}
+
 export const STATUSES = [
     { value: 'draft', label: 'Bản nháp', color: 'bg-yellow-100 text-yellow-800' },
     { value: 'published', label: 'Đã xuất bản', color: 'bg-green-100 text-green-800' },

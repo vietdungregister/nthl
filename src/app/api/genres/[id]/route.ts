@@ -19,7 +19,7 @@ export async function PUT(request: NextRequest, { params }: Props) {
 
     const { id } = await params
     const body = await request.json()
-    const { value, label, emoji, order } = body
+    const { value, label, emoji, order, showInSidebar } = body
 
     const genre = await prisma.genre.update({
         where: { id },
@@ -28,6 +28,7 @@ export async function PUT(request: NextRequest, { params }: Props) {
             ...(label !== undefined && { label }),
             ...(emoji !== undefined && { emoji }),
             ...(order !== undefined && { order }),
+            ...(showInSidebar !== undefined && { showInSidebar }),
         },
     })
 

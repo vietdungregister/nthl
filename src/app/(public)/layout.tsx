@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const [author, dbGenres, genreCounts, books, collections] = await Promise.all([
     prisma.authorProfile.findFirst(),
-    prisma.genre.findMany({ orderBy: { order: 'asc' } }),
+    prisma.genre.findMany({ where: { showInSidebar: true }, orderBy: { order: 'asc' } }),
     prisma.work.groupBy({ by: ['genre'], where: { status: 'published', deletedAt: null }, _count: true }),
     prisma.book.findMany({ orderBy: [{ order: 'asc' }, { year: 'desc' }], select: { id: true, slug: true, title: true, publisher: true, year: true, coverImage: true } }),
     prisma.collection.findMany({ orderBy: { order: 'asc' }, include: { _count: { select: { works: true } } } }),

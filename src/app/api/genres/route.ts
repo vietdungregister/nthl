@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body = await request.json()
-    const { value, label, emoji, order } = body
+    const { value, label, emoji, order, showInSidebar } = body
 
     if (!value || !label) {
         return NextResponse.json({ error: 'Missing required fields (value, label)' }, { status: 400 })
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     if (existing) return NextResponse.json({ error: 'Genre value already exists' }, { status: 400 })
 
     const genre = await prisma.genre.create({
-        data: { value, label, emoji: emoji || '📝', order: order ?? 0 },
+        data: { value, label, emoji: emoji || '📝', order: order ?? 0, showInSidebar: showInSidebar ?? true },
     })
 
     return NextResponse.json(genre, { status: 201 })

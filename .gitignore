@@ -54,3 +54,6 @@ next-env.d.ts
 
 # Generated output files
 profile.json
+
+# Claude Code local settings (Windows-specific paths)
+.claude/settings.local.json

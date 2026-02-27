@@ -6,6 +6,7 @@ import { slugify } from '@/lib/utils'
 
 interface Tag { id: string; name: string; slug: string }
 interface Col { id: string; title: string; slug: string }
+interface Genre { id: string; value: string; label: string; emoji: string }
 
 export default function NewWorkPage() {
     const router = useRouter()
@@ -13,7 +14,7 @@ export default function NewWorkPage() {
     const [slug, setSlug] = useState('')
     const [content, setContent] = useState('')
     const [excerpt, setExcerpt] = useState('')
-    const [genre, setGenre] = useState('poem')
+    const [genre, setGenre] = useState('')
     const [status, setStatus] = useState('published')
     const [isFeatured, setIsFeatured] = useState(false)
     const [featuredDate, setFeaturedDate] = useState('')
@@ -21,6 +22,7 @@ export default function NewWorkPage() {
     const [selectedCollections, setSelectedCollections] = useState<string[]>([])
     const [tags, setTags] = useState<Tag[]>([])
     const [collections, setCollections] = useState<Col[]>([])
+    const [genres, setGenres] = useState<Genre[]>([])
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState('')
     const [showTooltip, setShowTooltip] = useState(false)
@@ -31,6 +33,10 @@ export default function NewWorkPage() {
     useEffect(() => {
         fetch('/api/tags').then(r => r.json()).then(d => setTags(d.tags || d || []))
         fetch('/api/collections').then(r => r.json()).then(d => setCollections(d.collections || d || []))
+        fetch('/api/genres').then(r => r.json()).then((d: Genre[]) => {
+            setGenres(d || [])
+            if (!genre && d && d.length > 0) setGenre(d[0].value)
+        })
     }, [])
 
     useEffect(() => { if (title) setSlug(slugify(title)) }, [title])
@@ -42,6 +48,7 @@ export default function NewWorkPage() {
         if (!file) return
         setMediaFile(file)
         setMediaPreview(URL.createObjectURL(file))
+        e.target.value = ''
     }
 
     const handleDrop = (e: React.DragEvent) => {
@@ -68,11 +75,15 @@ export default function NewWorkPage() {
                 const uploadData = await uploadRes.json()
                 coverImageUrl = uploadData.url
             }
+            const finalSlug = isMediaGenre && !slug
+                ? `${genre}-${Date.now().toString(36)}`
+                : slug
             const res = await fetch('/api/works', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    title, slug, content, excerpt, genre, status,
+                    title: isMediaGenre ? '' : title,
+                    slug: finalSlug, content, excerpt, genre, status,
                     isFeatured, featuredDate: featuredDate || null,
                     coverImageUrl: coverImageUrl || undefined,
                     tagIds: selectedTags, collectionIds: selectedCollections,
@@ -109,43 +120,15 @@ export default function NewWorkPage() {
             <form onSubmit={handleSubmit}>
                 {isMediaGenre ? (
                     /* ════════════════════════════════════
-                       INSTAGRAM-STYLE PHOTO FORM
+                       INSTAGRAM-STYLE PHOTO FORM (no title, just caption)
                     ════════════════════════════════════ */
                     <>
-                        {/* Top strip: title, slug, genre */}
-                        <div style={{ background: 'white', borderRadius: 12, padding: '16px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #F3F4F6', marginBottom: 16 }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 16, alignItems: 'end' }}>
-                                <label>
-                                    <span style={labelStyle}>Tiêu đề</span>
-                                    <input value={title} onChange={e => setTitle(e.target.value)} style={inputStyle} placeholder="Tên bài đăng (tùy chọn)..." />
-                                </label>
-                                <label>
-                                    <span style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                        Slug
-                                        <span onMouseEnter={() => setShowTooltip(true)} onMouseLeave={() => setShowTooltip(false)}
-                                            style={{ position: 'relative', cursor: 'help', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', background: '#E5E7EB', color: '#6B7280', fontSize: 11, fontWeight: 700 }}>
-                                            ?
-                                            {showTooltip && (
-                                                <span style={{ position: 'absolute', bottom: '130%', left: '50%', transform: 'translateX(-50%)', background: '#1F2937', color: 'white', fontSize: 12, fontWeight: 400, padding: '8px 12px', borderRadius: 6, whiteSpace: 'nowrap', zIndex: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-                                                    Slug là phần đuôi URL thân thiện.<br />Ví dụ: &quot;bat-nat&quot; → /tac-pham/bat-nat
-                                                </span>
-                                            )}
-                                        </span>
-                                    </span>
-                                    <input value={slug} onChange={e => setSlug(e.target.value)} required style={inputStyle} />
-                                </label>
-                                <label>
-                                    <span style={labelStyle}>Thể loại</span>
-                                    <select value={genre} onChange={e => setGenre(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
-                                        <option value="poem">Thơ</option>
-                                        <option value="short_story">Truyện ngắn</option>
-                                        <option value="essay">Tản văn</option>
-                                        <option value="novel">Tiểu thuyết</option>
-                                        <option value="photo">Ảnh</option>
-                                        <option value="video">Video</option>
-                                    </select>
-                                </label>
-                            </div>
+                        {/* Top strip: genre only */}
+                        <div style={{ background: 'white', borderRadius: 12, padding: '12px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #F3F4F6', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: 15, fontWeight: 600, color: '#1A1A18' }}>📷 Đăng {genre === 'video' ? 'video' : 'ảnh'} mới</span>
+                            <select value={genre} onChange={e => setGenre(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
+                                {genres.map(g => <option key={g.value} value={g.value}>{g.emoji} {g.label}</option>)}
+                            </select>
                         </div>
 
                         {/* Instagram split panel */}
@@ -213,7 +196,7 @@ export default function NewWorkPage() {
                                             hoặc chọn từ máy tính của bạn
                                         </p>
                                         <button type="button"
-                                            onClick={() => document.getElementById('media-upload-new')?.click()}
+                                            onClick={(e) => { e.stopPropagation(); document.getElementById('media-upload-new')?.click() }}
                                             style={{ background: '#0095F6', color: 'white', border: 'none', borderRadius: 10, padding: '10px 28px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                                             Chọn từ máy tính
                                         </button>
@@ -222,8 +205,8 @@ export default function NewWorkPage() {
                                         </p>
                                     </div>
                                 )}
-                                <input id="media-upload-new" type="file" accept="image/*,video/*" onChange={handleMediaChange} style={{ display: 'none' }} />
                             </div>
+                            <input id="media-upload-new" type="file" accept="image/*,video/*" onChange={handleMediaChange} style={{ display: 'none' }} />
 
                             {/* Right: Details panel */}
                             <div style={{ background: 'white', borderLeft: '1px solid #DBDBDB', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
@@ -363,9 +346,7 @@ export default function NewWorkPage() {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
                                 <label><span style={labelStyle}>Thể loại</span>
                                     <select value={genre} onChange={e => setGenre(e.target.value)} style={inputStyle}>
-                                        <option value="poem">Thơ</option><option value="short_story">Truyện ngắn</option>
-                                        <option value="essay">Tản văn</option><option value="novel">Tiểu thuyết</option>
-                                        <option value="photo">Ảnh</option><option value="video">Video</option>
+                                        {genres.map(g => <option key={g.value} value={g.value}>{g.emoji} {g.label}</option>)}
                                     </select>
                                 </label>
                                 <label><span style={labelStyle}>Trạng thái</span>

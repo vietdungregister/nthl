@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { getGenreLabel, formatDate } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
+
+interface Genre { id: string; value: string; label: string; emoji: string }
 
 interface Work {
     id: string; title: string; slug: string; genre: string; status: string;
@@ -15,6 +17,11 @@ export default function WorksListPage() {
     const [statusFilter, setStatusFilter] = useState('')
     const [genreFilter, setGenreFilter] = useState('')
     const [loading, setLoading] = useState(true)
+    const [genres, setGenres] = useState<Genre[]>([])
+
+    useEffect(() => {
+        fetch('/api/genres').then(r => r.json()).then(d => setGenres(d || []))
+    }, [])
 
     const fetchWorks = async () => {
         setLoading(true)
@@ -62,12 +69,7 @@ export default function WorksListPage() {
                 </select>
                 <select value={genreFilter} onChange={e => setGenreFilter(e.target.value)} style={inputStyle}>
                     <option value="">Tất cả thể loại</option>
-                    <option value="poem">Thơ</option>
-                    <option value="short_story">Truyện ngắn</option>
-                    <option value="essay">Tản văn</option>
-                    <option value="novel">Tiểu thuyết</option>
-                    <option value="photo">Ảnh</option>
-                    <option value="video">Video</option>
+                    {genres.map(g => <option key={g.value} value={g.value}>{g.emoji} {g.label}</option>)}
                 </select>
             </div>
 
@@ -97,7 +99,7 @@ export default function WorksListPage() {
                                     </Link>
                                     {work.isFeatured && <span style={{ marginLeft: 6, color: '#F59E0B', fontSize: 12 }}>⭐</span>}
                                 </td>
-                                <td style={{ padding: '12px 16px', color: '#6B7280' }}>{getGenreLabel(work.genre)}</td>
+                                <td style={{ padding: '12px 16px', color: '#6B7280' }}>{genres.find(g => g.value === work.genre)?.label ?? work.genre}</td>
                                 <td style={{ padding: '12px 16px' }}>
                                     <span style={{
                                         fontSize: 11, padding: '2px 8px', borderRadius: 100,

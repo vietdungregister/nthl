@@ -124,11 +124,12 @@ model AuthorProfile {
 }
 
 model Genre {
-  id    String @id @default(uuid())
-  value String @unique
-  label String
-  emoji String @default("📝")
-  order Int    @default(0)
+  id            String  @id @default(uuid())
+  value         String  @unique
+  label         String
+  emoji         String  @default("📝")
+  order         Int     @default(0)
+  showInSidebar Boolean @default(true)
 }
 
 model Book {
