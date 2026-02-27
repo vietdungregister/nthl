@@ -1,0 +1,82 @@
+# ============================================================
+# .dockerignore — Loại bỏ các file/thư mục không cần thiết
+# khi Docker copy context vào image, giúp build nhanh hơn
+# và tránh rò rỉ thông tin nhạy cảm.
+# ============================================================
+
+
+# --- Version Control ---
+.git
+.gitignore
+
+
+# --- Environment Variables (BẮT BUỘC loại bỏ, CỰC KỲ NHẠY CẢM) ---
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+
+
+# --- Next.js cache & build output (sẽ được build lại trong container) ---
+.next
+out
+
+
+# --- Node modules (sẽ được cài lại bằng npm ci trong container) ---
+node_modules
+
+
+# --- Database file SQLite (dùng cho dev, không đưa vào Docker) ---
+dev.db
+prisma/dev.db
+*.db
+*.sqlite
+
+
+# --- Log files ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+
+# --- Editor & IDE configs ---
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+
+# --- OS generated files ---
+.DS_Store
+Thumbs.db
+
+
+# --- CI/CD & Documentation (không cần trong runtime image) ---
+.claude
+README.md
+IMPLEMENTATION_PLAN.md
+CLAUDE.md
+*.md
+
+
+# --- Test & Dev scripts (không cần trong production) ---
+health-check.js
+check-db.ts
+update-admin-password.js
+update-admin-password.ts
+update-db.ts
+
+
+# --- TypeScript build info cache ---
+tsconfig.tsbuildinfo
+
+
+# --- Prisma seed files (chỉ dùng khi setup lần đầu, không cần trong image) ---
+prisma/seed.ts
+prisma/seed.js
+prisma/seed.mjs
+prisma/seed-genres.js

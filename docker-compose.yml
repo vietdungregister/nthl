@@ -1,0 +1,74 @@
+# ============================================================
+# docker-compose.yml — PostgreSQL + Next.js App
+# Chạy: docker-compose up -d
+# Dừng: docker-compose down
+# Xóa data: docker-compose down -v
+# ============================================================
+
+version: '3.9'
+
+services:
+
+  # ──────────────────────────────────────────────────────────
+  # Service 1: PostgreSQL 16
+  # ──────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: vibe-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vibe_user
+      POSTGRES_PASSWORD: vibe_pass
+      POSTGRES_DB: vibe_db
+    ports:
+      # Map ra localhost:5432 để dùng tool như TablePlus/DBeaver khi cần
+      - "5432:5432"
+    volumes:
+      # Named volume giữ data bền vững, không mất khi restart container
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Docker chờ PostgreSQL sẵn sàng trước khi khởi động app
+      test: [ "CMD-SHELL", "pg_isready -U vibe_user -d vibe_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ──────────────────────────────────────────────────────────
+  # Service 2: Next.js App
+  # ──────────────────────────────────────────────────────────
+  app:
+    image: vibe-app:v3
+    container_name: vibe-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        # Chờ db healthcheck pass trước khi start app
+        condition: service_healthy
+    ports:
+      # localhost:3001 → container:3000
+      - "3001:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      # DATABASE_URL trỏ vào service "db" bằng tên hostname nội bộ Docker
+      # "db" là tên service ở trên, Docker tự resolve DNS nội bộ
+      DATABASE_URL: "postgresql://vibe_user:vibe_pass@db:5432/vibe_db"
+    env_file:
+      # Load thêm NEXTAUTH_SECRET, NEXTAUTH_URL, OPENAI_API_KEY, ADMIN_* từ .env
+      # DATABASE_URL ở env: trên sẽ ghi đè DATABASE_URL trong .env
+      - .env
+    volumes:
+      # Persist file uploads — không bị mất khi rebuild container
+      - uploads:/app/public/uploads
+
+# ──────────────────────────────────────────────────────────
+# Named Volumes — dữ liệu persistent
+# ──────────────────────────────────────────────────────────
+volumes:
+  pgdata:
+    driver: local
+  uploads:
+    driver: local

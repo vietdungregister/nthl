@@ -1,0 +1,146 @@
+generator client {
+  provider      = "prisma-client-js"
+  // native: dùng khi chạy trên Windows (dev)
+  // debian-openssl-1.1.x: dùng khi chạy trong Docker container (node:20-slim)
+  binaryTargets = ["native", "debian-openssl-1.1.x"]
+}
+
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model AdminUser {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  passwordHash   String
+  createdAt      DateTime  @default(now())
+  lastLoginAt    DateTime?
+  loginAttempts  Int       @default(0)
+  lockUntil      DateTime?
+}
+
+
+model Work {
+  id             String   @id @default(uuid())
+  title          String
+  slug           String   @unique
+  genre          String
+  content        String
+  excerpt        String?
+  coverImageUrl  String?
+  
+  status         String   @default("draft")
+  publishedAt    DateTime?
+  scheduledAt    DateTime?
+  
+  isFeatured     Boolean  @default(false)
+  featuredDate   DateTime?
+  
+  seoTitle       String?
+  seoDescription String?
+  ogImageUrl     String?
+  
+  viewCount      Int      @default(0)
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  tags           WorkTag[]
+  collections    WorkCollection[]
+  comments       Comment[]
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  workId    String
+  work      Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  name      String
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model Tag {
+  id    String @id @default(uuid())
+  name  String
+  slug  String @unique
+  works WorkTag[]
+}
+
+model Collection {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  description String?
+  coverImage  String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  works       WorkCollection[]
+}
+
+model WorkTag {
+  work   Work   @relation(fields: [workId], references: [id], onDelete: Cascade)
+  workId String
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId  String
+
+  @@id([workId, tagId])
+}
+
+model WorkCollection {
+  work         Work       @relation(fields: [workId], references: [id], onDelete: Cascade)
+  workId       String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  collectionId String
+
+  @@id([workId, collectionId])
+}
+
+model Media {
+  id        String   @id @default(uuid())
+  filename  String
+  url       String
+  type      String
+  size      Int
+  width     Int?
+  height    Int?
+  altText   String?
+  createdAt DateTime @default(now())
+}
+
+model AuthorProfile {
+  id            String @id @default("singleton")
+  name          String @default("Nguyễn Thế Hoàng Linh")
+  bio           String @default("")
+  bioShort      String @default("")
+  avatarUrl     String @default("")
+  coverImageUrl String @default("")
+  socialLinks   String @default("{}")
+  awards        String @default("[]")
+  publications  String @default("[]")
+}
+
+model Genre {
+  id    String @id @default(uuid())
+  value String @unique
+  label String
+  emoji String @default("📝")
+  order Int    @default(0)
+}
+
+model Book {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  description String?
+  coverImage  String?
+  buyUrl      String?
+  publisher   String?
+  year        Int?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
