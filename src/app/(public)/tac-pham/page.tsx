@@ -35,7 +35,8 @@ export default async function WorksPage({ searchParams }: Props) {
         prisma.genre.findMany({ orderBy: { order: 'asc' } }),
     ])
 
-    const getLabel = (val: string) => dbGenres.find((g: { value: string; label: string }) => g.value === val)?.label ?? val
+    const SPECIAL_LABELS: Record<string, string> = { photo: 'Ảnh', video: 'Video' }
+    const getLabel = (val: string) => dbGenres.find((g: { value: string; label: string }) => g.value === val)?.label ?? SPECIAL_LABELS[val] ?? val
 
     const totalPages = Math.ceil(total / limit)
 

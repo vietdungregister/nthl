@@ -9,7 +9,10 @@
       "Bash(git add Dockerfile deploy-init.sh)",
       "Bash(git push)",
       "Bash(git add src/lib/auth.ts)",
-      "Bash(git add .claude/settings.json .gitignore docker-compose.yml prisma/schema.prisma src/app/ src/components/ src/lib/)"
+      "Bash(git add .claude/settings.json .gitignore docker-compose.yml prisma/schema.prisma src/app/ src/components/ src/lib/)",
+      "Bash(git push origin master)",
+      "Bash(ssh -o StrictHostKeyChecking=no root@188.166.177.93 \"echo connected && pwd && ls\")",
+      "Bash(git add .claude/settings.json src/app/)"
     ]
   }
 }

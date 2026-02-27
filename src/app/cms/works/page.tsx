@@ -19,8 +19,16 @@ export default function WorksListPage() {
     const [loading, setLoading] = useState(true)
     const [genres, setGenres] = useState<Genre[]>([])
 
+    const HARDCODED_GENRES = [
+        { id: '_photo', value: 'photo', label: 'Ảnh', emoji: '📷' },
+        { id: '_video', value: 'video', label: 'Video', emoji: '🎬' },
+    ]
     useEffect(() => {
-        fetch('/api/genres').then(r => r.json()).then(d => setGenres(d || []))
+        fetch('/api/genres').then(r => r.json()).then(d => {
+            const db = d || []
+            const existing = new Set(db.map((g: Genre) => g.value))
+            setGenres([...db, ...HARDCODED_GENRES.filter(g => !existing.has(g.value))])
+        })
     }, [])
 
     const fetchWorks = async () => {

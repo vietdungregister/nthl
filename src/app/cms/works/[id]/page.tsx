@@ -44,7 +44,13 @@ export default function EditWorkPage() {
         ]).then(([tagsData, colsData, work, genresData]) => {
             setTags(tagsData.tags || tagsData || [])
             setCollections(colsData.collections || colsData || [])
-            setGenres(genresData || [])
+            const dbG = genresData || []
+            const existingV = new Set(dbG.map((g: { value: string }) => g.value))
+            const HARDCODED_G = [
+                { value: 'photo', label: 'Ảnh', emoji: '📷' },
+                { value: 'video', label: 'Video', emoji: '🎬' },
+            ]
+            setGenres([...dbG, ...HARDCODED_G.filter(g => !existingV.has(g.value))])
             if (work && !work.error) {
                 setTitle(work.title || '')
                 setSlug(work.slug || '')

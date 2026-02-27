@@ -18,6 +18,18 @@ export default async function PublicLayout({ children }: { children: React.React
     prisma.collection.findMany({ orderBy: { order: 'asc' }, include: { _count: { select: { works: true } } } }),
   ])
 
+  // Hardcoded special genres — ALWAYS present regardless of DB
+  const HARDCODED_GENRES = [
+    { value: 'photo', label: 'Ảnh', emoji: '📷', order: 90 },
+    { value: 'video', label: 'Video', emoji: '🎬', order: 91 },
+  ]
+  // Merge: DB genres + hardcoded ones (skip if already in DB)
+  const existingValues = new Set(dbGenres.map((g: { value: string }) => g.value))
+  const mergedGenres = [
+    ...dbGenres,
+    ...HARDCODED_GENRES.filter(g => !existingValues.has(g.value)),
+  ]
+
   const totalAllWorks = genreCounts.reduce((s: number, g: { _count: number }) => s + g._count, 0)
 
   return (
@@ -40,7 +52,7 @@ export default async function PublicLayout({ children }: { children: React.React
           {/* SidebarNav is client-side so it reads URL without server re-render */}
           <Suspense fallback={null}>
             <SidebarNav
-              genres={dbGenres}
+              genres={mergedGenres}
               genreCounts={genreCounts}
               books={books}
               totalAllWorks={totalAllWorks}

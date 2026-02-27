@@ -34,8 +34,15 @@ export default function NewWorkPage() {
         fetch('/api/tags').then(r => r.json()).then(d => setTags(d.tags || d || []))
         fetch('/api/collections').then(r => r.json()).then(d => setCollections(d.collections || d || []))
         fetch('/api/genres').then(r => r.json()).then((d: Genre[]) => {
-            setGenres(d || [])
-            if (!genre && d && d.length > 0) setGenre(d[0].value)
+            const db = d || []
+            const existing = new Set(db.map(g => g.value))
+            const HARDCODED: Genre[] = [
+                { id: '_photo', value: 'photo', label: 'Ảnh', emoji: '📷' },
+                { id: '_video', value: 'video', label: 'Video', emoji: '🎬' },
+            ]
+            const merged = [...db, ...HARDCODED.filter(g => !existing.has(g.value))]
+            setGenres(merged)
+            if (!genre && merged.length > 0) setGenre(merged[0].value)
         })
     }, [])
 
