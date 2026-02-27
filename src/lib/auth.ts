@@ -58,6 +58,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             },
         }),
     ],
+    trustHost: true,
     // SEC-009: Reduced from 30 days to 8 hours
     session: { strategy: 'jwt', maxAge: 8 * 60 * 60 },
     pages: { signIn: '/cms/login' },
