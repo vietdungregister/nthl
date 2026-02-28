@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { after } from 'next/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getGenreLabel, formatDate } from '@/lib/utils'
@@ -25,12 +26,21 @@ export default async function WorkDetailPage({ params }: Props) {
     })
     if (!work) notFound()
 
-    await prisma.work.update({ where: { id: work.id }, data: { viewCount: { increment: 1 } } })
+    // View count update chạy SAU khi response đã trả về user — không block render
+    after(async () => {
+        await prisma.work.update({ where: { id: work.id }, data: { viewCount: { increment: 1 } } })
+    })
 
     const [prev, next, related] = await Promise.all([
         prisma.work.findFirst({ where: { status: 'published', deletedAt: null, publishedAt: { lt: work.publishedAt || undefined } }, orderBy: { publishedAt: 'desc' }, select: { title: true, slug: true } }),
         prisma.work.findFirst({ where: { status: 'published', deletedAt: null, publishedAt: { gt: work.publishedAt || undefined } }, orderBy: { publishedAt: 'asc' }, select: { title: true, slug: true } }),
-        prisma.work.findMany({ where: { genre: work.genre, status: 'published', deletedAt: null, id: { not: work.id } }, take: 3, orderBy: { publishedAt: 'desc' } }),
+        // select thay vì include toàn bộ — tránh load content (có thể hàng trăm KB) khi chỉ cần excerpt
+        prisma.work.findMany({
+            where: { genre: work.genre, status: 'published', deletedAt: null, id: { not: work.id } },
+            take: 3,
+            orderBy: { publishedAt: 'desc' },
+            select: { id: true, title: true, slug: true, excerpt: true },
+        }),
     ])
 
     const isVisualGenre = VISUAL_GENRES.includes(work.genre)
@@ -126,7 +136,7 @@ export default async function WorkDetailPage({ params }: Props) {
                         {related.map(r => (
                             <Link key={r.id} href={`/tac-pham/${r.slug}`} className="poem-card" style={{ minHeight: 'auto' }}>
                                 <div className="poem-card__title">{r.title}</div>
-                                <div className="poem-card__excerpt">{r.excerpt || r.content.slice(0, 80)}</div>
+                                <div className="poem-card__excerpt">{r.excerpt ?? ''}</div>
                             </Link>
                         ))}
                     </div>

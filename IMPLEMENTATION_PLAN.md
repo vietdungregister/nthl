@@ -333,14 +333,44 @@
 
 ## Phase 8: Performance & Polish
 
-### 8.1 Performance
-- [ ] Dùng `next/image` cho tất cả ảnh (lazy loading, responsive sizes)
-- [ ] Static Generation (SSG/ISR) cho các trang public phổ biến
-  - [ ] Homepage: ISR revalidate 3600s (1h)
-  - [ ] Work detail: `generateStaticParams` cho tất cả published works
-  - [ ] Genre, Tag, Collection pages: ISR
-- [ ] Pagination với `Suspense` để tránh blocking
+### 8.1 Performance — ĐÃ HOÀN THÀNH (2026-02-28)
+
+> Tối ưu cho quy mô 10.000 tác phẩm, content ~3-4GB text, 10k lượt xem/tháng
+
+**Database Indexes (đã apply vào DB):**
+- [x] `@@index([status, deletedAt, publishedAt])` — trang chủ + danh sách
+- [x] `@@index([genre, status, deletedAt])` — filter theo thể loại
+- [x] `@@index([featuredDate, status, deletedAt])` — tác phẩm ngày
+- [x] `@@index([createdAt])` — CMS dashboard
+- [x] `@@index([deletedAt, status])` — COUNT/groupBy queries
+- [x] GIN index `Work_fts_gin_idx` — Full-text search (tsvector), thay thế LIKE scan
+
+**Next.js & Caching:**
+- [x] Xóa `force-dynamic` khỏi root layout → bật lại ISR/SSG
+- [x] `next.config.ts`: `compress: true` + `images` (WebP/AVIF, 30-day TTL)
+- [x] `src/lib/cache.ts`: `getCachedGenres`, `getCachedTags`, `getCachedAuthorProfile` (unstable_cache)
+- [x] Homepage ISR `revalidate = 300` (5 phút)
+- [x] About page ISR `revalidate = 86400` (24h)
+- [x] `after()` từ `next/server` cho view count (non-blocking)
+
+**Query Optimization:**
+- [x] **KHÔNG BAO GIỜ** select `content` trong list views (excerpt thay thế)
+- [x] Dashboard: 3 COUNT riêng lẻ → 1 `groupBy`
+- [x] Tag page: thêm `take: 60`, parallel query, chỉ select cần thiết
+- [x] Collection page: filter trong DB thay vì JavaScript
+- [x] Related works: `select` thay `include` toàn bộ
+- [x] Search (`/tim-kiem`): PostgreSQL full-text search thay LIKE
+
+**⚠️ Known Issue — `/tac-pham` search filter:**
+- Trang `/tac-pham?search=...` dùng `contains` (LIKE) trên `content`
+- Với 10k tác phẩm × 3-4GB content, cần chuyển sang FTS khi có nhiều traffic
+- Workaround: Redirect search về `/tim-kiem?q=...` thay vì filter inline
+
+**Còn lại:**
+- [ ] Dùng `next/image` thay `<img>` cho tất cả ảnh (đã làm homepage, còn các trang khác)
+- [ ] `generateStaticParams` cho Work detail pages (nếu muốn SSG)
 - [ ] Font optimization: `next/font/google`
+- [ ] Pagination với `Suspense`
 
 ### 8.2 UI Polish
 - [ ] Kiểm tra responsive trên mobile (375px, 390px), tablet (768px), desktop (1280px)

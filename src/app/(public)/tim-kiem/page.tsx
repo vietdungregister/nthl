@@ -4,29 +4,76 @@ import type { Metadata } from 'next'
 import AILibrarian from '@/components/public/AILibrarian'
 
 export const metadata: Metadata = { title: 'Tìm kiếm' }
+export const dynamic = 'force-dynamic'
 
 interface Props { searchParams: Promise<{ q?: string }> }
+
+// Row trả về từ raw SQL query — KHÔNG bao gồm content
+interface SearchRow {
+    id: string
+    title: string
+    slug: string
+    genre: string
+    excerpt: string | null
+}
+
+/**
+ * Full-text search dùng PostgreSQL tsvector + GIN index.
+ *
+ * Tại sao không dùng Prisma contains()?
+ * - contains() → SQL LIKE '%query%' → sequential scan toàn bộ bảng
+ * - Với content field 3-4GB, LIKE '%...%' mất hàng chục giây mỗi query
+ * - tsvector + GIN index → O(log n), kết quả trong milli-seconds
+ *
+ * GIN index được tạo trong migration: add-performance-indexes
+ * (xem prisma/migrations/)
+ */
+async function searchWorks(query: string): Promise<SearchRow[]> {
+    // Sanitize: loại bỏ ký tự đặc biệt của tsquery để tránh lỗi syntax
+    const sanitized = query.replace(/[&|!():*<>]/g, ' ').trim()
+    if (!sanitized) return []
+
+    // plainto_tsquery tự parse chuỗi tự nhiên, không cần thêm & | thủ công
+    // 'simple' dictionary: không stemming, phù hợp tiếng Việt có dấu
+    const results = await prisma.$queryRaw<SearchRow[]>`
+        SELECT
+            id,
+            title,
+            slug,
+            genre,
+            excerpt
+        FROM "Work"
+        WHERE
+            status = 'published'
+            AND "deletedAt" IS NULL
+            AND to_tsvector('simple',
+                coalesce(title, '') || ' ' ||
+                coalesce(excerpt, '') || ' ' ||
+                coalesce(content, '')
+            ) @@ plainto_tsquery('simple', ${sanitized})
+        ORDER BY
+            ts_rank(
+                to_tsvector('simple',
+                    coalesce(title, '') || ' ' ||
+                    coalesce(excerpt, '') || ' ' ||
+                    coalesce(content, '')
+                ),
+                plainto_tsquery('simple', ${sanitized})
+            ) DESC,
+            "publishedAt" DESC NULLS LAST
+        LIMIT 30
+    `
+
+    return results
+}
 
 export default async function SearchPage({ searchParams }: Props) {
     const sp = await searchParams
     const query = sp.q?.trim() || ''
 
-    // Nếu không có query → chỉ hiện Thủ Thư AI
     if (!query) return <AILibrarian />
 
-    // Có query → tìm kiếm thông thường + hiện Thủ Thư AI bên dưới
-    const works = await prisma.work.findMany({
-        where: {
-            status: 'published', deletedAt: null,
-            OR: [
-                { title: { contains: query } },
-                { content: { contains: query } },
-                { excerpt: { contains: query } },
-            ],
-        },
-        orderBy: { publishedAt: 'desc' },
-        take: 50,
-    })
+    const works = await searchWorks(query)
 
     return (
         <div>
@@ -38,7 +85,7 @@ export default async function SearchPage({ searchParams }: Props) {
                 {works.map(work => (
                     <Link key={work.id} href={`/tac-pham/${work.slug}`} className="poem-card" style={{ minHeight: 'auto' }}>
                         <div className="poem-card__title">{work.title}</div>
-                        <div className="poem-card__excerpt">{work.excerpt || work.content.slice(0, 100)}</div>
+                        <div className="poem-card__excerpt">{work.excerpt ?? ''}</div>
                     </Link>
                 ))}
                 {works.length === 0 && (

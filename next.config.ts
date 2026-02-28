@@ -17,14 +17,28 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
-  // output: 'standalone' — build Next.js thành bundle độc lập, tối ưu cho Docker.
-  // Next.js sẽ copy chỉ những file cần thiết vào .next/standalone/
-  // thay vì yêu cầu toàn bộ node_modules khi chạy production.
   output: 'standalone',
+  // Bật gzip/brotli compression cho tất cả responses
+  compress: true,
+  // Tối ưu hình ảnh: chuyển sang WebP/AVIF, lazy load, responsive srcset
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    // Các breakpoint thiết bị phổ biến (mobile-first)
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    // Cache ảnh đã optimize 30 ngày trên CDN
+    minimumCacheTTL: 60 * 60 * 24 * 30,
+    // Cho phép tối ưu ảnh từ các domain ngoài (Cloudinary, uploadthing, v.v.)
+    remotePatterns: [
+      { protocol: 'https', hostname: '**.cloudinary.com' },
+      { protocol: 'https', hostname: '**.utfs.io' },
+      { protocol: 'https', hostname: '**.ufs.sh' },
+      { protocol: 'https', hostname: 'res.cloudinary.com' },
+    ],
+  },
   async headers() {
     return [
       {
-        // Apply security headers to all routes
         source: '/(.*)',
         headers: securityHeaders,
       },

@@ -1,11 +1,13 @@
-import { prisma } from '@/lib/db'
+import { getCachedAuthorProfile } from '@/lib/cache'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Giới thiệu' }
+// Trang tĩnh — cache 24h, revalidate khi admin cập nhật profile
+export const revalidate = 86400
 
 export default async function AboutPage() {
-    const author = await prisma.authorProfile.findFirst()
+    const author = await getCachedAuthorProfile()
     if (!author) return <div className="public-shell" style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 60 }}>Chưa có thông tin tác giả.</div>
 
     const awards = JSON.parse(author.awards || '[]') as { title: string; year: number; description: string }[]

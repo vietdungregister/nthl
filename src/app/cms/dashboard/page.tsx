@@ -3,13 +3,32 @@ import Link from 'next/link'
 import { formatDate, getGenreLabel } from '@/lib/utils'
 
 export default async function DashboardPage() {
-    const [totalWorks, published, drafts, totalViews, recentWorks] = await Promise.all([
-        prisma.work.count({ where: { deletedAt: null } }),
-        prisma.work.count({ where: { status: 'published', deletedAt: null } }),
-        prisma.work.count({ where: { status: 'draft', deletedAt: null } }),
-        prisma.work.aggregate({ where: { deletedAt: null }, _sum: { viewCount: true } }),
-        prisma.work.findMany({ where: { deletedAt: null }, orderBy: { createdAt: 'desc' }, take: 5, include: { tags: { include: { tag: true } } } }),
+    // Gộp 3 COUNT riêng lẻ thành 1 groupBy → giảm từ 3 xuống còn 2 round-trips DB
+    const [statusCounts, totalViews, recentWorks] = await Promise.all([
+        prisma.work.groupBy({
+            by: ['status'],
+            where: { deletedAt: null },
+            _count: { id: true },
+        }),
+        prisma.work.aggregate({
+            where: { deletedAt: null },
+            _sum: { viewCount: true },
+        }),
+        prisma.work.findMany({
+            where: { deletedAt: null },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            // Không cần content — chỉ cần metadata cho dashboard list
+            select: {
+                id: true, title: true, status: true, genre: true, createdAt: true,
+                tags: { include: { tag: { select: { name: true } } } },
+            },
+        }),
     ])
+
+    const totalWorks = statusCounts.reduce((sum, s) => sum + s._count.id, 0)
+    const published = statusCounts.find(s => s.status === 'published')?._count.id ?? 0
+    const drafts = statusCounts.find(s => s.status === 'draft')?._count.id ?? 0
 
     const stats = [
         { label: 'Tổng tác phẩm', value: totalWorks, icon: '📝', color: '#3B82F6' },
@@ -39,7 +58,7 @@ export default async function DashboardPage() {
                             <span style={{ fontSize: 13, color: '#6B7280' }}>{s.label}</span>
                             <span style={{ fontSize: 20 }}>{s.icon}</span>
                         </div>
-                        <div style={{ fontSize: 28, fontWeight: 700, color: s.color }}>{s.value}</div>
+                        <div style={{ fontSize: 28, fontWeight: 700, color: s.color }}>{s.value.toLocaleString('vi-VN')}</div>
                     </div>
                 ))}
             </div>

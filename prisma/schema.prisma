@@ -31,20 +31,20 @@ model Work {
   content        String
   excerpt        String?
   coverImageUrl  String?
-  
+
   status         String   @default("draft")
   publishedAt    DateTime?
   scheduledAt    DateTime?
-  
+
   isFeatured     Boolean  @default(false)
   featuredDate   DateTime?
-  
+
   seoTitle       String?
   seoDescription String?
   ogImageUrl     String?
-  
+
   viewCount      Int      @default(0)
-  
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   deletedAt      DateTime?
@@ -52,6 +52,18 @@ model Work {
   tags           WorkTag[]
   collections    WorkCollection[]
   comments       Comment[]
+
+  // Performance indexes cho các query phổ biến
+  // [status, deletedAt, publishedAt] → filter published + sort theo ngày (trang chủ, danh sách)
+  @@index([status, deletedAt, publishedAt(sort: Desc)])
+  // [genre, status, deletedAt] → filter theo thể loại
+  @@index([genre, status, deletedAt])
+  // [featuredDate, status, deletedAt] → tìm tác phẩm được ghim theo ngày (trang chủ)
+  @@index([featuredDate, status, deletedAt])
+  // [createdAt] → sort theo ngày tạo trong CMS dashboard
+  @@index([createdAt(sort: Desc)])
+  // [deletedAt, status] → dashboard COUNT queries
+  @@index([deletedAt, status])
 }
 
 model Comment {

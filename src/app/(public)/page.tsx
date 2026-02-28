@@ -1,56 +1,62 @@
 import { prisma } from '@/lib/db'
+import { getCachedGenres } from '@/lib/cache'
 import Link from 'next/link'
+import Image from 'next/image'
 import ExpandableContent from '@/components/ExpandableContent'
 import DailyWorkBanner from '@/components/DailyWorkBanner'
+
+// ISR: rerender mỗi 5 phút. Với 10k tác phẩm, trang chủ gần như static.
+export const revalidate = 300
 
 const VISUAL_GENRES = ['photo', 'video', 'painting']
 const TEXT_GENRES = ['poem', 'short_story', 'essay', 'novel', 'prose']
 
-/** Pick a random item from an array */
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
+// Chỉ select các field thực sự cần — KHÔNG bao giờ lấy `content` trong list view.
+// Content có thể lớn hàng trăm KB mỗi tác phẩm → 20 works × 300KB = 6MB/request.
+const WORK_LIST_SELECT = {
+  id: true, title: true, slug: true, genre: true,
+  excerpt: true, coverImageUrl: true,
+  publishedAt: true, isFeatured: true,
+  tags: { include: { tag: { select: { name: true, slug: true } } } },
+} as const
+
 export default async function HomePage() {
-  const [latest, dbGenres] = await Promise.all([
-    prisma.work.findMany({
-      where: { status: 'published', deletedAt: null },
-      take: 20, orderBy: { publishedAt: 'desc' },
-      include: { tags: { include: { tag: true } } },
-    }),
-    prisma.genre.findMany({ orderBy: { order: 'asc' } }),
-  ])
-
-  const getLabel = (val: string) => dbGenres.find((g: { value: string; label: string }) => g.value === val)?.label ?? val
-
-  // Tìm tác phẩm của ngày hôm nay
   const today = new Date()
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
 
+  // Gộp tất cả queries vào một Promise.all — không còn sequential waterfall
+  const [latest, dbGenres, featuredToday] = await Promise.all([
+    prisma.work.findMany({
+      where: { status: 'published', deletedAt: null },
+      take: 20,
+      orderBy: { publishedAt: 'desc' },
+      select: WORK_LIST_SELECT,
+    }),
+    getCachedGenres(), // cached 1h — không query DB mỗi request
+    prisma.work.findMany({
+      where: { status: 'published', deletedAt: null, featuredDate: { gte: todayStart, lt: todayEnd } },
+      select: { id: true, title: true, slug: true, genre: true, excerpt: true },
+    }),
+  ])
+
+  const getLabel = (val: string) => dbGenres.find(g => g.value === val)?.label ?? val
+
   let dailyWork = null
-
-  // 1. Ưu tiên: tác phẩm được admin set featuredDate = hôm nay
-  const featuredToday = await prisma.work.findMany({
-    where: {
-      status: 'published',
-      deletedAt: null,
-      featuredDate: { gte: todayStart, lt: todayEnd },
-    },
-    select: { id: true, title: true, slug: true, genre: true, content: true },
-  })
-
   if (featuredToday.length > 0) {
     const w = pickRandom(featuredToday)
-    dailyWork = { ...w, genreLabel: getLabel(w.genre) }
+    dailyWork = { ...w, content: w.excerpt ?? '', genreLabel: getLabel(w.genre) }
   } else {
-    // 2. Fallback: random từ kho text genre (toàn bộ DB, không chỉ 20 mới nhất)
     const textWorks = latest.filter(w => TEXT_GENRES.includes(w.genre))
     if (textWorks.length > 0) {
       const w = pickRandom(textWorks)
       dailyWork = {
         id: w.id, title: w.title, slug: w.slug,
-        genre: w.genre, content: w.content,
+        genre: w.genre, content: w.excerpt ?? '',
         genreLabel: getLabel(w.genre),
       }
     }
@@ -76,7 +82,7 @@ export default async function HomePage() {
       {/* Daily Work Banner */}
       {dailyWork && <DailyWorkBanner work={dailyWork} />}
 
-      {/* Feed */}
+      {/* Feed — dùng excerpt thay vì content để tránh load data nặng */}
       <div className="feed-layout" style={{ padding: '0', maxWidth: 'none' }}>
         {latest.map(work => (
           <article key={work.id} className="feed-card">
@@ -90,20 +96,29 @@ export default async function HomePage() {
             {VISUAL_GENRES.includes(work.genre) && work.coverImageUrl && (
               <div style={{ marginBottom: 12, borderRadius: 10, overflow: 'hidden' }}>
                 {(work.genre === 'video' || work.coverImageUrl.match(/\.(mp4|webm|ogg|mov)$/i)) ? (
-                  <video src={work.coverImageUrl} controls muted playsInline style={{ width: '100%', maxHeight: 420, objectFit: 'cover', background: '#000' }} />
+                  <video src={work.coverImageUrl} controls muted playsInline preload="none" style={{ width: '100%', maxHeight: 420, objectFit: 'cover', background: '#000' }} />
                 ) : (
                   <Link href={`/tac-pham/${work.slug}`}>
-                    <img src={work.coverImageUrl} alt={work.title} style={{ width: '100%', maxHeight: 420, objectFit: 'cover' }} />
+                    <Image
+                      src={work.coverImageUrl}
+                      alt={work.title ?? ''}
+                      width={800}
+                      height={420}
+                      style={{ width: '100%', maxHeight: 420, objectFit: 'cover' }}
+                      loading="lazy"
+                      sizes="(max-width: 768px) 100vw, 800px"
+                    />
                   </Link>
                 )}
               </div>
             )}
 
-            {!VISUAL_GENRES.includes(work.genre) && work.content && (
-              <ExpandableContent content={work.content} limit={500} className={work.genre === 'poem' ? 'feed-card__poem' : 'feed-card__prose'} />
+            {/* Dùng excerpt — không cần load full content */}
+            {!VISUAL_GENRES.includes(work.genre) && work.excerpt && (
+              <ExpandableContent content={work.excerpt} limit={500} className={work.genre === 'poem' ? 'feed-card__poem' : 'feed-card__prose'} />
             )}
-            {VISUAL_GENRES.includes(work.genre) && work.content && (
-              <ExpandableContent content={work.content} limit={200} className="feed-card__prose" />
+            {VISUAL_GENRES.includes(work.genre) && work.excerpt && (
+              <ExpandableContent content={work.excerpt} limit={200} className="feed-card__prose" />
             )}
 
             {work.tags.length > 0 && (

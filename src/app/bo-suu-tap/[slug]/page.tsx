@@ -5,13 +5,36 @@ import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 
 interface Props { params: Promise<{ slug: string }> }
-export async function generateMetadata({ params }: Props): Promise<Metadata> { const { slug } = await params; const col = await prisma.collection.findUnique({ where: { slug } }); return col ? { title: col.title } : {} }
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+    const { slug } = await params
+    const col = await prisma.collection.findUnique({ where: { slug } })
+    return col ? { title: col.title } : {}
+}
 
 export default async function CollectionPage({ params }: Props) {
     const { slug } = await params
-    const col = await prisma.collection.findUnique({ where: { slug }, include: { works: { include: { work: true } } } })
+    const col = await prisma.collection.findUnique({
+        where: { slug },
+        include: {
+            works: {
+                // Lọc trực tiếp trong DB — tránh load rồi filter bằng JS
+                where: { work: { status: 'published', deletedAt: null } },
+                orderBy: { work: { publishedAt: 'desc' } },
+                include: {
+                    work: {
+                        // KHÔNG select content — excerpt đủ để hiển thị card
+                        select: {
+                            id: true, title: true, slug: true, genre: true, excerpt: true,
+                        },
+                    },
+                },
+            },
+        },
+    })
     if (!col) notFound()
-    const works = col.works.map(wc => wc.work).filter(w => w.status === 'published' && !w.deletedAt)
+
+    const works = col.works.map(wc => wc.work)
 
     return (
         <div className="public-shell">
@@ -32,7 +55,7 @@ export default async function CollectionPage({ params }: Props) {
                     <Link key={w.id} href={`/tac-pham/${w.slug}`} className="poem-card">
                         <div className="poem-card__genre">{getGenreLabel(w.genre)}</div>
                         <div className="poem-card__title">{w.title}</div>
-                        <div className="poem-card__excerpt">{w.excerpt || w.content.slice(0, 100)}</div>
+                        <div className="poem-card__excerpt">{w.excerpt ?? ''}</div>
                     </Link>
                 ))}
             </div>

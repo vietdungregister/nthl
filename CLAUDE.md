@@ -607,3 +607,76 @@ Mỗi trang (đặc biệt trang tác phẩm) cần:
 ---
 
 *Document này là PRD cho phiên bản 1.0. Cập nhật theo từng sprint.*
+
+---
+
+## 11. Quyết Định Kỹ Thuật Đã Xác Nhận (Cập nhật 2026-02-28)
+
+> Phần này ghi lại các quyết định kỹ thuật đã được implement, thay thế/bổ sung cho phần 5.
+
+### 11.1 Quy Mô Thực Tế
+
+| Thông số | Giá trị |
+|----------|---------|
+| Số tác phẩm | ~10.000 |
+| Tổng dung lượng content (text) | ~3-4 GB |
+| Mục tiêu traffic | 10.000 lượt xem/tháng |
+| Tính năng đặc biệt | AI Chat với toàn bộ kho tác phẩm |
+| DB | PostgreSQL tại localhost:5433, DB: `vibe_db` |
+| Next.js version | 16.1.6 |
+
+### 11.2 Quy Tắc Bắt Buộc Khi Viết Code
+
+**Database queries:**
+- ❌ **KHÔNG BAO GIỜ** `prisma.work.findMany({ ... })` mà không có `select` — mặc định load toàn bộ `content` (hàng trăm KB/row)
+- ✅ Luôn dùng `select: { id, title, slug, genre, excerpt, coverImageUrl, publishedAt, ... }` trong list views
+- ❌ **KHÔNG** dùng `{ content: { contains: query } }` — LIKE scan trên 3-4GB là thảm họa
+- ✅ Search phải dùng PostgreSQL full-text search (`$queryRaw` với `tsvector`)
+- ✅ Genres và Tags phải lấy từ `getCachedGenres()` / `getCachedTags()` trong `src/lib/cache.ts`
+- ✅ View count increment phải dùng `after()` từ `next/server` (non-blocking)
+
+**ISR / Caching:**
+- Trang tĩnh (giới-thiệu): `export const revalidate = 86400`
+- Trang semi-static (trang chủ): `export const revalidate = 300`
+- Trang có filter/searchParams: `export const dynamic = 'force-dynamic'`
+- CMS pages: `export const dynamic = 'force-dynamic'`
+- **KHÔNG** đặt `force-dynamic` ở root `layout.tsx`
+
+**Cache invalidation (khi admin thay đổi data):**
+```typescript
+import { revalidateTag } from 'next/cache'
+revalidateTag('genres')         // sau khi sửa genre
+revalidateTag('tags')           // sau khi thêm/xóa tag
+revalidateTag('author-profile') // sau khi sửa hồ sơ tác giả
+```
+
+### 11.3 Indexes Đã Có Trong DB
+
+```sql
+Work_status_deletedAt_publishedAt_idx  -- trang chủ + danh sách
+Work_genre_status_deletedAt_idx        -- filter theo thể loại
+Work_featuredDate_status_deletedAt_idx -- tác phẩm nổi bật theo ngày
+Work_createdAt_idx                     -- CMS sort
+Work_deletedAt_status_idx              -- dashboard COUNT
+Work_fts_gin_idx                       -- Full-text search (GIN/tsvector)
+Work_slug_key                          -- unique slug (mặc định)
+Work_pkey                              -- primary key (mặc định)
+```
+
+### 11.4 Lưu Ý Cho Tính Năng AI Chat
+
+Với kho tác phẩm 3-4GB text:
+- **KHÔNG** load toàn bộ content vào context LLM
+- **KHÔNG** query `SELECT content FROM Work` trên nhiều rows cùng lúc
+- **PHẢI** dùng chunking: load từng tác phẩm một khi cần
+- Khi mở rộng: xem xét `pgvector` (PostgreSQL vector extension) cho semantic search / RAG
+- API `/api/ai-search` hiện tại đã có rate limiting — giữ nguyên
+
+### 11.5 File Quan Trọng (Không Xóa/Đổi Tên)
+
+| File | Vai trò |
+|------|---------|
+| `src/lib/cache.ts` | Centralized cache cho genres/tags/author |
+| `src/lib/db.ts` | Prisma client singleton |
+| `src/lib/auth.ts` | NextAuth JWT config |
+| `prisma/migrations/20260228000000_add_performance_indexes/migration.sql` | GIN index + B-tree indexes |
