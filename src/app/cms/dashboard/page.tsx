@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db'
 import Link from 'next/link'
 import { formatDate, getGenreLabel } from '@/lib/utils'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardPage() {
     // Gộp 3 COUNT riêng lẻ thành 1 groupBy → giảm từ 3 xuống còn 2 round-trips DB
     const [statusCounts, totalViews, recentWorks] = await Promise.all([
