@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: 'Giới thiệu' }
 export const revalidate = 86400
 
 export default async function AboutPage() {
-    const author = await getCachedAuthorProfile()
+    const author = await getCachedAuthorProfile().catch(() => null)
     if (!author) return <div className="public-shell" style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 60 }}>Chưa có thông tin tác giả.</div>
 
     const awards = JSON.parse(author.awards || '[]') as { title: string; year: number; description: string }[]

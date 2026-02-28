@@ -30,18 +30,19 @@ export default async function HomePage() {
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
 
   // Gộp tất cả queries vào một Promise.all — không còn sequential waterfall
+  // .catch(() => []) để build Docker thành công khi không có DB (ISR sẽ lấy data thật lúc runtime)
   const [latest, dbGenres, featuredToday] = await Promise.all([
     prisma.work.findMany({
       where: { status: 'published', deletedAt: null },
       take: 20,
       orderBy: { publishedAt: 'desc' },
       select: WORK_LIST_SELECT,
-    }),
-    getCachedGenres(), // cached 1h — không query DB mỗi request
+    }).catch(() => []),
+    getCachedGenres().catch(() => []), // cached 1h — không query DB mỗi request
     prisma.work.findMany({
       where: { status: 'published', deletedAt: null, featuredDate: { gte: todayStart, lt: todayEnd } },
       select: { id: true, title: true, slug: true, genre: true, excerpt: true },
-    }),
+    }).catch(() => []),
   ])
 
   const getLabel = (val: string) => dbGenres.find(g => g.value === val)?.label ?? val
