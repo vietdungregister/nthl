@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { prisma } from '@/lib/db'
 import { after } from 'next/server'
 import Link from 'next/link'

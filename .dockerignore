@@ -18,6 +18,16 @@
 .env.production
 
 
+# --- Large data folders (media, FB export, uploads) ---
+/media/
+/output/
+/data/
+/facebook-nguyenthehoanglinh-06_03_2026-y1cYzpJi/
+/public/uploads/fb/
+*.dump
+*.tar.gz
+
+
 # --- Next.js cache & build output (sẽ được build lại trong container) ---
 .next
 out
