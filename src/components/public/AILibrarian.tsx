@@ -1,66 +1,99 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+
+const STORAGE_KEY = 'ai-lib-state'
+const TTL_MS = 15 * 60 * 1000
 
 interface AIWork {
     id: string
     title: string
     slug: string
     genre: string
-    excerpt: string
-    tags: string[]
+    preview_sentences: string[]
     publishedAt: string | null
+    writtenAt: string | null
 }
 
 interface AISearchResult {
-    explanation: string
     works: AIWork[]
 }
 
 const GENRE_LABELS: Record<string, string> = {
     poem: 'Thơ',
-    novel: 'Tiểu thuyết',
-    essay: 'Tiểu luận',
     prose: 'Tùy bút',
-    painting: 'Tranh',
     photo: 'Ảnh',
     video: 'Video',
 }
 
-const EXAMPLE_PROMPTS = [
-    'Thơ về tình yêu nhẹ nhàng',
-    'Thơ buồn về mùa đông',
-    'Thơ dành cho trẻ em',
-    'Thơ về sự cô đơn',
-]
+const PAGE_SIZE = 10
 
 export default function AILibrarian() {
     const [query, setQuery] = useState('')
     const [loading, setLoading] = useState(false)
     const [result, setResult] = useState<AISearchResult | null>(null)
     const [error, setError] = useState<string | null>(null)
+    const [page, setPage] = useState(1)
+    const [filterYear, setFilterYear] = useState<string>('')
+    const [filterMonth, setFilterMonth] = useState<string>('')
+    const [filterDay, setFilterDay] = useState<string>('')
     const resultRef = useRef<HTMLDivElement>(null)
+    const initialized = useRef(false)
 
-    async function handleSubmit(e?: React.FormEvent) {
-        e?.preventDefault()
-        if (!query.trim() || loading) return
+    // Restore from sessionStorage — chỉ restore query/filters, auto re-search
+    useEffect(() => {
+        if (initialized.current) return
+        initialized.current = true
+        try {
+            const saved = sessionStorage.getItem(STORAGE_KEY)
+            if (saved) {
+                const s = JSON.parse(saved)
+                if (s.expiry && Date.now() > s.expiry) {
+                    sessionStorage.removeItem(STORAGE_KEY)
+                    return
+                }
+                if (s.query) {
+                    setQuery(s.query)
+                    if (s.filterYear) setFilterYear(s.filterYear)
+                    if (s.filterMonth) setFilterMonth(s.filterMonth)
+                    if (s.filterDay) setFilterDay(s.filterDay)
+                    if (s.page) setPage(s.page)
+                    // Auto re-search để lấy lại kết quả
+                    doSearch(s.query)
+                }
+            }
+        } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
+    // Chỉ lưu query + filters (KHÔNG lưu results)
+    useEffect(() => {
+        if (!result) {
+            sessionStorage.removeItem(STORAGE_KEY)
+            return
+        }
+        try {
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+                query, page, filterYear, filterMonth, filterDay,
+                expiry: Date.now() + TTL_MS,
+            }))
+        } catch { /* ignore */ }
+    }, [result, page, query, filterYear, filterMonth, filterDay])
+
+    async function doSearch(q: string) {
+        if (!q.trim() || loading) return
         setLoading(true)
         setError(null)
         setResult(null)
-
         try {
             const res = await fetch('/api/ai-search', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: query.trim() }),
+                body: JSON.stringify({ query: q.trim() }),
             })
             const data = await res.json()
-            if (!res.ok) {
-                setError(data.error || 'Có lỗi xảy ra.')
-                return
-            }
+            if (!res.ok) { setError(data.error || 'Có lỗi xảy ra.'); return }
             setResult(data)
             setTimeout(() => {
                 resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -72,8 +105,30 @@ export default function AILibrarian() {
         }
     }
 
-    function handleExampleClick(prompt: string) {
-        setQuery(prompt)
+    function handleSubmit(e?: React.FormEvent) {
+        e?.preventDefault()
+        setPage(1)
+        doSearch(query)
+    }
+
+    // Filter client-side theo năm/tháng/ngày
+    const filteredWorks = result?.works.filter(w => {
+        const dateStr = w.writtenAt || w.publishedAt
+        if (!dateStr) return !filterYear && !filterMonth && !filterDay
+        const d = new Date(dateStr)
+        if (filterYear && d.getFullYear() !== parseInt(filterYear)) return false
+        if (filterMonth && d.getMonth() + 1 !== parseInt(filterMonth)) return false
+        if (filterDay && d.getDate() !== parseInt(filterDay)) return false
+        return true
+    }) || []
+
+    const totalWorks = filteredWorks.length
+    const totalPages = Math.ceil(totalWorks / PAGE_SIZE)
+    const pagedWorks = filteredWorks.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+    function goToPage(p: number) {
+        setPage(p)
+        resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
 
     return (
@@ -99,7 +154,7 @@ export default function AILibrarian() {
                         className="ai-lib__textarea"
                         value={query}
                         onChange={e => setQuery(e.target.value)}
-                        placeholder="Ví dụ: Tôi muốn đọc thơ buồn nhẹ nhàng về mùa đông..."
+                        placeholder=""
                         rows={3}
                         maxLength={500}
                         disabled={loading}
@@ -112,23 +167,6 @@ export default function AILibrarian() {
                         }}
                     />
                 </div>
-
-                {/* Example prompts */}
-                {!result && !loading && (
-                    <div className="ai-lib__examples" aria-label="Gợi ý tìm kiếm">
-                        {EXAMPLE_PROMPTS.map(prompt => (
-                            <button
-                                key={prompt}
-                                type="button"
-                                className="ai-lib__example-chip"
-                                onClick={() => handleExampleClick(prompt)}
-                                disabled={loading}
-                            >
-                                {prompt}
-                            </button>
-                        ))}
-                    </div>
-                )}
 
                 <div className="ai-lib__form-footer">
                     <span className="ai-lib__char-count" aria-live="polite">
@@ -173,48 +211,180 @@ export default function AILibrarian() {
             {/* Result */}
             {result && (
                 <div className="ai-lib__result" ref={resultRef} aria-live="polite">
-                    {/* AI explanation */}
-                    {result.explanation && (
-                        <div className="ai-lib__explanation">
-                            <div className="ai-lib__explanation-icon" aria-hidden="true">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-                                </svg>
+                    {/* Summary bar + Year filter */}
+                    {result.works.length > 0 && (
+                        <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            flexWrap: 'wrap', gap: 8,
+                            padding: '10px 0 14px', borderBottom: '1px solid var(--border)',
+                            marginBottom: 16, fontSize: 13, color: 'var(--text-secondary)',
+                            fontFamily: "'Inter', sans-serif",
+                        }}>
+                            <span>
+                                Tìm thấy <strong style={{ color: 'var(--accent)' }}>{totalWorks}</strong>
+                                {filterYear || filterMonth || filterDay
+                                    ? ` bài${filterDay ? ` ngày ${filterDay}` : ''}${filterMonth ? `/${filterMonth}` : ''}${filterYear ? `/${filterYear}` : ''}`
+                                    : ' tác phẩm liên quan'}
+                                {totalPages > 1 && <> · Trang {page}/{totalPages}</>}
+                            </span>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                {/* Năm */}
+                                <select value={filterYear} onChange={e => { setFilterYear(e.target.value); setFilterMonth(''); setFilterDay(''); setPage(1) }}
+                                    style={{ padding: '4px 8px', borderRadius: 6, fontSize: 12, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                                    <option value=''>Tất cả năm</option>
+                                    {Array.from({ length: 18 }, (_, i) => 2026 - i).map(y => (
+                                        <option key={y} value={y}>{y}</option>
+                                    ))}
+                                </select>
+                                {/* Tháng */}
+                                <select value={filterMonth} onChange={e => { setFilterMonth(e.target.value); setFilterDay(''); setPage(1) }}
+                                    style={{ padding: '4px 8px', borderRadius: 6, fontSize: 12, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                                    <option value=''>Tất cả tháng</option>
+                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                                        <option key={m} value={m}>Tháng {m}</option>
+                                    ))}
+                                </select>
+                                {/* Ngày */}
+                                <select value={filterDay} onChange={e => { setFilterDay(e.target.value); setPage(1) }}
+                                    style={{ padding: '4px 8px', borderRadius: 6, fontSize: 12, border: '1px solid var(--border)', background: 'var(--card-bg)', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                                    <option value=''>Tất cả ngày</option>
+                                    {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                                        <option key={d} value={d}>Ngày {d}</option>
+                                    ))}
+                                </select>
+                                {/* Reset */}
+                                {(filterYear || filterMonth || filterDay) && (
+                                    <button onClick={() => { setFilterYear(''); setFilterMonth(''); setFilterDay(''); setPage(1) }}
+                                        style={{ padding: '4px 10px', borderRadius: 6, fontSize: 12, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                                        × Xóa lọc
+                                    </button>
+                                )}
                             </div>
-                            <p className="ai-lib__explanation-text">{result.explanation}</p>
                         </div>
                     )}
 
                     {/* Work cards */}
-                    {result.works.length > 0 ? (
+                    {pagedWorks.length > 0 ? (
                         <div className="ai-lib__works">
-                            {result.works.map(work => (
+                            {pagedWorks.map((work, idx) => {
+                                // Random client-side mỗi lần render
+                                const sents = work.preview_sentences || []
+                                const sentence = sents.length > 0
+                                    ? sents[Math.floor(Math.random() * sents.length)]
+                                    : ''
+                                return (
                                 <Link
                                     key={work.id}
                                     href={`/tac-pham/${work.slug}`}
                                     className="poem-card ai-lib__work-card"
                                 >
-                                    <div className="poem-card__genre">
-                                        {GENRE_LABELS[work.genre] ?? work.genre}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                                        <span className="poem-card__genre">
+                                            {GENRE_LABELS[work.genre] ?? work.genre}
+                                        </span>
+                                        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: "'Inter', sans-serif" }}>
+                                            #{(page - 1) * PAGE_SIZE + idx + 1}
+                                        </span>
+                                        {(() => { const d = work.writtenAt || work.publishedAt; return d && (
+                                            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: "'Inter', sans-serif", marginLeft: 'auto' }}>
+                                                {new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                            </span>
+                                        )})()}
                                     </div>
-                                    <div className="poem-card__title">{work.title}</div>
-                                    {work.excerpt && (
-                                        <div className="poem-card__excerpt">{work.excerpt}</div>
+                                    {work.title && (
+                                        <div style={{
+                                            fontFamily: "'Playfair Display', serif",
+                                            fontSize: 16, fontWeight: 600,
+                                            color: 'var(--text-primary)',
+                                            marginBottom: 8, lineHeight: 1.4,
+                                        }}>
+                                            {work.title}
+                                        </div>
                                     )}
-                                    {work.tags.length > 0 && (
-                                        <div className="poem-card__tags">
-                                            {work.tags.slice(0, 3).map(tag => (
-                                                <span key={tag} className="poem-card__tag">{tag}</span>
-                                            ))}
+                                    {sentence && (
+                                        <div style={{
+                                            padding: '10px 14px',
+                                            background: 'var(--accent-light)',
+                                            borderRadius: 6,
+                                            fontSize: 15,
+                                            fontFamily: "'Lora', serif",
+                                            color: 'var(--text-secondary)',
+                                            fontStyle: 'italic',
+                                            lineHeight: 1.7,
+                                            borderLeft: '3px solid var(--accent)',
+                                        }}>
+                                            {sentence}
                                         </div>
                                     )}
                                 </Link>
-                            ))}
+                                )
+                            })}
                         </div>
                     ) : (
                         <div className="ai-lib__empty">
-                            Thủ thư chưa tìm được tác phẩm nào phù hợp. Thử diễn đạt khác nhé.
+                            Không tìm thấy tác phẩm nào.
+                        </div>
+                    )}
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                        <div style={{
+                            display: 'flex', justifyContent: 'center', alignItems: 'center',
+                            gap: 8, padding: '20px 0 8px',
+                            fontFamily: "'Inter', sans-serif", fontSize: 13,
+                        }}>
+                            <button
+                                onClick={() => goToPage(page - 1)}
+                                disabled={page <= 1}
+                                style={{
+                                    padding: '6px 14px', borderRadius: 6,
+                                    border: '1px solid var(--border)',
+                                    background: page <= 1 ? 'transparent' : 'var(--card-bg)',
+                                    color: page <= 1 ? 'var(--text-muted)' : 'var(--text-primary)',
+                                    cursor: page <= 1 ? 'default' : 'pointer',
+                                    opacity: page <= 1 ? 0.4 : 1,
+                                }}
+                            >
+                                ← Trước
+                            </button>
+
+                            {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                                .map((p, idx, arr) => (
+                                    <span key={p}>
+                                        {idx > 0 && arr[idx - 1] !== p - 1 && (
+                                            <span style={{ color: 'var(--text-muted)', margin: '0 2px' }}>…</span>
+                                        )}
+                                        <button
+                                            onClick={() => goToPage(p)}
+                                            style={{
+                                                padding: '6px 10px', borderRadius: 6,
+                                                border: p === page ? '1px solid var(--accent)' : '1px solid var(--border)',
+                                                background: p === page ? 'var(--accent)' : 'var(--card-bg)',
+                                                color: p === page ? '#fff' : 'var(--text-primary)',
+                                                cursor: 'pointer', fontWeight: p === page ? 600 : 400,
+                                                minWidth: 34,
+                                            }}
+                                        >
+                                            {p}
+                                        </button>
+                                    </span>
+                                ))}
+
+                            <button
+                                onClick={() => goToPage(page + 1)}
+                                disabled={page >= totalPages}
+                                style={{
+                                    padding: '6px 14px', borderRadius: 6,
+                                    border: '1px solid var(--border)',
+                                    background: page >= totalPages ? 'transparent' : 'var(--card-bg)',
+                                    color: page >= totalPages ? 'var(--text-muted)' : 'var(--text-primary)',
+                                    cursor: page >= totalPages ? 'default' : 'pointer',
+                                    opacity: page >= totalPages ? 0.4 : 1,
+                                }}
+                            >
+                                Tiếp →
+                            </button>
                         </div>
                     )}
                 </div>

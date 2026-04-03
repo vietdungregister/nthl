@@ -13,7 +13,7 @@ services:
   # Service 1: PostgreSQL 16
   # ──────────────────────────────────────────────────────────
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: vibe-db
     restart: unless-stopped
     environment:

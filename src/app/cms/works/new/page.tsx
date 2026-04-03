@@ -29,6 +29,8 @@ export default function NewWorkPage() {
     const [mediaFile, setMediaFile] = useState<File | null>(null)
     const [mediaPreview, setMediaPreview] = useState('')
     const [isDragging, setIsDragging] = useState(false)
+    const [writtenAt, setWrittenAt] = useState('')
+    const [translations, setTranslations] = useState<{ lang: string; title: string; content: string; note: string }[]>([])
 
     useEffect(() => {
         fetch('/api/tags').then(r => r.json()).then(d => setTags(d.tags || d || []))
@@ -92,6 +94,8 @@ export default function NewWorkPage() {
                     title: isMediaGenre ? '' : title,
                     slug: finalSlug, content, excerpt, genre, status,
                     isFeatured, featuredDate: featuredDate || null,
+                    writtenAt: writtenAt || null,
+                    translations: translations.length > 0 ? JSON.stringify(translations) : null,
                     coverImageUrl: coverImageUrl || undefined,
                     tagIds: selectedTags, collectionIds: selectedCollections,
                 }),
@@ -380,6 +384,74 @@ export default function NewWorkPage() {
                                     </label>
                                 )}
                             </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
+                                <label>
+                                    <span style={labelStyle}>✍️ Ngày sáng tác</span>
+                                    <input type="date" value={writtenAt} onChange={e => setWrittenAt(e.target.value)}
+                                        style={{ ...inputStyle, color: writtenAt ? '#8B6F47' : '#9CA3AF' }} />
+                                    <span style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4, display: 'block' }}>Ngày tác giả viết bài (optional)</span>
+                                </label>
+                                {writtenAt && (
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 24 }}>
+                                        <button type="button" onClick={() => setWrittenAt('')}
+                                            style={{ fontSize: 12, color: '#9CA3AF', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', fontFamily: 'inherit' }}>Xóa ngày</button>
+                                    </label>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Bản dịch & bổ sung */}
+                        <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #F3F4F6', marginBottom: 20 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1F2937', margin: 0 }}>🌐 Bản dịch & bổ sung</h3>
+                                <button type="button"
+                                    onClick={() => setTranslations([...translations, { lang: '', title: '', content: '', note: '' }])}
+                                    style={{ fontSize: 13, color: '#5C7A5C', background: '#F0F9F0', border: '1px solid #C6E6C6', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                                    + Thêm bản dịch
+                                </button>
+                            </div>
+                            {translations.length === 0 && (
+                                <p style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', padding: '20px 0' }}>
+                                    Chưa có bản dịch nào. Nhấn &quot;+ Thêm bản dịch&quot; để bắt đầu.
+                                </p>
+                            )}
+                            {translations.map((tr, idx) => (
+                                <div key={idx} style={{ border: '1px solid #E5E7EB', borderRadius: 10, padding: 16, marginBottom: 12, background: '#FAFAF9' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                                        <input
+                                            value={tr.lang}
+                                            onChange={e => { const t = [...translations]; t[idx] = { ...t[idx], lang: e.target.value }; setTranslations(t) }}
+                                            placeholder="Ngôn ngữ (vd: English, 中文, Français...)"
+                                            style={{ ...inputStyle, fontWeight: 600, fontSize: 13, width: 'auto', flex: 1, marginRight: 12 }}
+                                        />
+                                        <button type="button"
+                                            onClick={() => setTranslations(translations.filter((_, i) => i !== idx))}
+                                            style={{ fontSize: 12, color: '#EF4444', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                                            Xóa
+                                        </button>
+                                    </div>
+                                    <input
+                                        value={tr.title}
+                                        onChange={e => { const t = [...translations]; t[idx] = { ...t[idx], title: e.target.value }; setTranslations(t) }}
+                                        placeholder="Tiêu đề bản dịch (optional)"
+                                        style={{ ...inputStyle, marginBottom: 8, fontSize: 13 }}
+                                    />
+                                    <textarea
+                                        value={tr.content}
+                                        onChange={e => { const t = [...translations]; t[idx] = { ...t[idx], content: e.target.value }; setTranslations(t) }}
+                                        placeholder="Nội dung bản dịch..."
+                                        rows={5}
+                                        style={{ ...inputStyle, fontFamily: "'Lora', Georgia, serif", lineHeight: 1.8, resize: 'vertical', marginBottom: 8, fontSize: 14 }}
+                                    />
+                                    <textarea
+                                        value={tr.note}
+                                        onChange={e => { const t = [...translations]; t[idx] = { ...t[idx], note: e.target.value }; setTranslations(t) }}
+                                        placeholder="Ghi chú dịch giả / bổ sung thêm (optional)..."
+                                        rows={2}
+                                        style={{ ...inputStyle, fontSize: 12, color: '#6B7280', resize: 'vertical', fontStyle: 'italic' }}
+                                    />
+                                </div>
+                            ))}
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>

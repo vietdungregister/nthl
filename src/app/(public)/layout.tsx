@@ -1,21 +1,21 @@
-import { prisma } from '@/lib/db'
+import { getCachedAuthorProfile, getCachedGenres, getCachedGenreCounts, getCachedBooks, getCachedCollections } from '@/lib/cache'
 import Link from 'next/link'
 import PublicHeader from '@/components/PublicHeader'
 import SidebarNav from '@/components/SidebarNav'
 import { Suspense } from 'react'
 
-// force-dynamic: bắt buộc Next.js render layout này ở server-side mỗi request,
-// không prerender static HTML lúc build. Cần thiết để Docker build thành công
-// vì lúc build không có database thực sự.
-export const dynamic = 'force-dynamic'
+// Cache tất cả sidebar data — revalidate qua tags khi admin thay đổi
+// Không còn force-dynamic → Next.js có thể cache HTML output
+export const revalidate = 300 // ISR 5 phút, đồng bộ với homepage
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
+  // Tất cả queries đã được cache (unstable_cache) — 0 DB round-trips khi cache warm
   const [author, dbGenres, genreCounts, books, collections] = await Promise.all([
-    prisma.authorProfile.findFirst(),
-    prisma.genre.findMany({ where: { showInSidebar: true }, orderBy: { order: 'asc' } }),
-    prisma.work.groupBy({ by: ['genre'], where: { status: 'published', deletedAt: null }, _count: true }),
-    prisma.book.findMany({ orderBy: [{ order: 'asc' }, { year: 'desc' }], select: { id: true, slug: true, title: true, publisher: true, year: true, coverImage: true } }),
-    prisma.collection.findMany({ orderBy: { order: 'asc' }, include: { _count: { select: { works: true } } } }),
+    getCachedAuthorProfile(),
+    getCachedGenres(),
+    getCachedGenreCounts(),
+    getCachedBooks(),
+    getCachedCollections(),
   ])
 
   // Hardcoded special genres — ALWAYS present regardless of DB

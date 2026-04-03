@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import AILibrarian from '@/components/public/AILibrarian'
+import LazyAILibrarian from '@/components/lazy/LazyAILibrarian'
 
 export const metadata: Metadata = { title: 'Tìm kiếm' }
 export const dynamic = 'force-dynamic'
@@ -20,46 +20,37 @@ interface SearchRow {
 /**
  * Full-text search dùng PostgreSQL tsvector + GIN index.
  *
- * Tại sao không dùng Prisma contains()?
- * - contains() → SQL LIKE '%query%' → sequential scan toàn bộ bảng
- * - Với content field 3-4GB, LIKE '%...%' mất hàng chục giây mỗi query
- * - tsvector + GIN index → O(log n), kết quả trong milli-seconds
- *
- * GIN index được tạo trong migration: add-performance-indexes
- * (xem prisma/migrations/)
+ * Tối ưu: dùng CTE để tính to_tsvector MỘT LẦN duy nhất,
+ * tránh duplicate computation trong WHERE và ORDER BY.
  */
 async function searchWorks(query: string): Promise<SearchRow[]> {
     // Sanitize: loại bỏ ký tự đặc biệt của tsquery để tránh lỗi syntax
     const sanitized = query.replace(/[&|!():*<>]/g, ' ').trim()
     if (!sanitized) return []
 
-    // plainto_tsquery tự parse chuỗi tự nhiên, không cần thêm & | thủ công
-    // 'simple' dictionary: không stemming, phù hợp tiếng Việt có dấu
     const results = await prisma.$queryRaw<SearchRow[]>`
-        SELECT
-            id,
-            title,
-            slug,
-            genre,
-            excerpt
-        FROM "Work"
-        WHERE
-            status = 'published'
-            AND "deletedAt" IS NULL
-            AND to_tsvector('simple',
-                coalesce(title, '') || ' ' ||
-                coalesce(excerpt, '') || ' ' ||
-                coalesce(content, '')
-            ) @@ plainto_tsquery('simple', ${sanitized})
-        ORDER BY
-            ts_rank(
+        WITH search_results AS (
+            SELECT
+                id, title, slug, genre, excerpt,
                 to_tsvector('simple',
                     coalesce(title, '') || ' ' ||
                     coalesce(excerpt, '') || ' ' ||
                     coalesce(content, '')
-                ),
-                plainto_tsquery('simple', ${sanitized})
-            ) DESC,
+                ) AS doc_vector
+            FROM "Work"
+            WHERE
+                status = 'published'
+                AND "deletedAt" IS NULL
+                AND to_tsvector('simple',
+                    coalesce(title, '') || ' ' ||
+                    coalesce(excerpt, '') || ' ' ||
+                    coalesce(content, '')
+                ) @@ plainto_tsquery('simple', ${sanitized})
+        )
+        SELECT id, title, slug, genre, excerpt
+        FROM search_results
+        ORDER BY
+            ts_rank(doc_vector, plainto_tsquery('simple', ${sanitized})) DESC,
             "publishedAt" DESC NULLS LAST
         LIMIT 30
     `
@@ -71,7 +62,7 @@ export default async function SearchPage({ searchParams }: Props) {
     const sp = await searchParams
     const query = sp.q?.trim() || ''
 
-    if (!query) return <AILibrarian />
+    if (!query) return <LazyAILibrarian />
 
     const works = await searchWorks(query)
 
@@ -95,7 +86,7 @@ export default async function SearchPage({ searchParams }: Props) {
                 )}
             </div>
 
-            <AILibrarian />
+            <LazyAILibrarian />
         </div>
     )
 }

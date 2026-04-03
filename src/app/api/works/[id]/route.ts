@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { after } from 'next/server'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { chunkAndEmbed } from '@/lib/chunkAndEmbed'
 
 // GET /api/works/[id]
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -24,7 +26,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const { id } = await params
     const body = await request.json()
-    const { title, slug, genre, content, excerpt, coverImageUrl, status, publishedAt, scheduledAt, isFeatured, featuredDate, seoTitle, seoDescription, ogImageUrl, tagIds, collectionIds } = body
+    const { title, slug, genre, content, excerpt, coverImageUrl, status, publishedAt, scheduledAt, isFeatured, featuredDate, writtenAt, translations, seoTitle, seoDescription, ogImageUrl, tagIds, collectionIds } = body
 
     // Check slug uniqueness (excluding current work)
     if (slug) {
@@ -54,6 +56,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             ...(scheduledAt !== undefined && { scheduledAt: scheduledAt ? new Date(scheduledAt) : null }),
             ...(isFeatured !== undefined && { isFeatured }),
             ...(featuredDate !== undefined && { featuredDate: featuredDate ? new Date(featuredDate) : null }),
+            ...(writtenAt !== undefined && { writtenAt: writtenAt ? new Date(writtenAt) : null }),
+            ...(translations !== undefined && { translations }),
             ...(seoTitle !== undefined && { seoTitle }),
             ...(seoDescription !== undefined && { seoDescription }),
             ...(ogImageUrl !== undefined && { ogImageUrl }),
@@ -62,6 +66,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         },
         include: { tags: { include: { tag: true } }, collections: { include: { collection: true } } },
     })
+
+    // Chỉ re-index nếu content thay đổi
+    if (content !== undefined) {
+        after(() => chunkAndEmbed(id, content))
+    }
 
     return NextResponse.json(work)
 }

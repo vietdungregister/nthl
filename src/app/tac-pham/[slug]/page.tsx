@@ -1,10 +1,11 @@
 import { prisma } from '@/lib/db'
 import { after } from 'next/server'
 import Link from 'next/link'
+import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { getGenreLabel, formatDate } from '@/lib/utils'
-import CommentSection from '@/components/CommentSection'
 import PublicHeader from '@/components/PublicHeader'
+import LazyCommentSection from '@/components/lazy/LazyCommentSection'
 import type { Metadata } from 'next'
 
 interface Props { params: Promise<{ slug: string }> }
@@ -54,7 +55,10 @@ export default async function WorkDetailPage({ params }: Props) {
             <div className="reading-wrapper">
                 <Link href="/tac-pham" className="reading-back">← Tác phẩm</Link>
                 <div className="reading-meta">
-                    {getGenreLabel(work.genre)} · {work.publishedAt ? formatDate(work.publishedAt) : ''} · {work.viewCount} lượt xem
+                    {getGenreLabel(work.genre)}
+                    {work.writtenAt && <> · Sáng tác: {formatDate(work.writtenAt)}</>}
+                    {work.publishedAt && !work.writtenAt && <> · {formatDate(work.publishedAt)}</>}
+                    {' '}· {work.viewCount} lượt xem
                 </div>
 
                 <div className="reading-card">
@@ -68,7 +72,7 @@ export default async function WorkDetailPage({ params }: Props) {
                             {isVideo ? (
                                 <video src={work.coverImageUrl} controls style={{ width: '100%', maxHeight: 600, borderRadius: 8 }} />
                             ) : (
-                                <img src={work.coverImageUrl} alt={work.title} style={{ width: '100%', maxHeight: 600, objectFit: 'contain', borderRadius: 8 }} />
+                                <Image src={work.coverImageUrl} alt={work.title} width={900} height={600} style={{ width: '100%', maxHeight: 600, objectFit: 'contain', borderRadius: 8 }} priority />
                             )}
                         </div>
                     )}
@@ -80,6 +84,34 @@ export default async function WorkDetailPage({ params }: Props) {
                         </div>
                     )}
                 </div>
+
+                {/* Bản dịch */}
+                {work.translations && (() => {
+                    try {
+                        const trs: Array<{ lang: string; title?: string; content: string; note?: string }> = JSON.parse(work.translations)
+                        if (!trs || trs.length === 0) return null
+                        return (
+                            <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 24 }}>
+                                <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>
+                                    Bản dịch
+                                </h2>
+                                {trs.map((tr, i) => (
+                                    <div key={i} style={{ marginBottom: 28 }}>
+                                        <div style={{ fontSize: 13, fontFamily: "'Inter', sans-serif", color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600 }}>
+                                            {tr.lang}{tr.title && ` — ${tr.title}`}
+                                        </div>
+                                        {tr.note && (
+                                            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 8 }}>{tr.note}</div>
+                                        )}
+                                        <div className="reading-card__prose" style={{ borderLeft: '3px solid var(--border)', paddingLeft: 16 }}>
+                                            {tr.content}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )
+                    } catch { return null }
+                })()}
 
                 {/* Tags */}
                 {work.tags.length > 0 && (
@@ -118,7 +150,7 @@ export default async function WorkDetailPage({ params }: Props) {
 
                 {/* Comments */}
                 <div style={{ marginTop: 32 }}>
-                    <CommentSection workId={work.id} expanded />
+                    <LazyCommentSection workId={work.id} expanded />
                 </div>
 
                 {/* Prev / Next */}

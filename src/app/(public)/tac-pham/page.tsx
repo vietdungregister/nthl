@@ -1,8 +1,10 @@
 import { prisma } from '@/lib/db'
 import { getCachedGenres, getCachedTags } from '@/lib/cache'
 import Link from 'next/link'
+import Image from 'next/image'
 import { formatDate } from '@/lib/utils'
 import ExpandableContent from '@/components/ExpandableContent'
+import WorksSmartSearch from '@/components/public/WorksSmartSearch'
 import type { Metadata } from 'next'
 
 // Trang có searchParams → dynamic, nhưng genres/tags được cache riêng (1h)
@@ -26,6 +28,13 @@ export default async function WorksPage({ searchParams }: Props) {
 
     const where: Record<string, unknown> = { status: 'published', deletedAt: null }
     if (genre) where.genre = genre
+    // Với photo/video grid: chỉ hiện bài có ảnh thật (tránh ô trống)
+    if (genre && VISUAL_GENRES.includes(genre)) {
+        where.AND = [
+            { coverImageUrl: { not: null } },
+            { coverImageUrl: { not: '' } },
+        ]
+    }
     if (tag) where.tags = { some: { tag: { slug: tag } } }
     if (search) {
         where.OR = [
@@ -52,7 +61,7 @@ export default async function WorksPage({ searchParams }: Props) {
             select: {
                 id: true, title: true, slug: true, genre: true,
                 excerpt: true, coverImageUrl: true,
-                publishedAt: true, isFeatured: true,
+                publishedAt: true, writtenAt: true, isFeatured: true,
                 tags: { include: { tag: { select: { name: true, slug: true } } } },
             },
         }),
@@ -79,29 +88,7 @@ export default async function WorksPage({ searchParams }: Props) {
 
     return (
         <>
-            {/* Date filter & Search */}
-            <form method="GET" action="/tac-pham" className="date-filter" style={{ flexWrap: 'wrap' }}>
-                {genre && <input type="hidden" name="genre" value={genre} />}
-                {tag && <input type="hidden" name="tag" value={tag} />}
-                <input
-                    type="text"
-                    name="search"
-                    defaultValue={search || ''}
-                    placeholder="Tìm tác phẩm..."
-                    className="date-filter__select"
-                    style={{ flex: '1 1 200px', minWidth: 200 }}
-                />
-                <select name="month" defaultValue={month || ''} className="date-filter__select">
-                    <option value="">Tháng</option>
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <option key={m} value={m}>Tháng {m}</option>)}
-                </select>
-                <select name="year" defaultValue={year || ''} className="date-filter__select">
-                    <option value="">Năm</option>
-                    {Array.from({ length: 10 }, (_, i) => 2026 - i).map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-                <button type="submit" className="date-filter__btn">Lọc/Tìm</button>
-                {(month || year || search) && <Link href={`/tac-pham${genre ? `?genre=${genre}` : ''}`} className="date-filter__clear">✕ Bỏ lọc</Link>}
-            </form>
+            <WorksSmartSearch genre={genre} month={month} year={year}>
 
             {tag && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0 12px' }}>
@@ -127,7 +114,7 @@ export default async function WorksPage({ searchParams }: Props) {
                                                 <div className="insta-grid__video-badge">▶</div>
                                             </>
                                         ) : (
-                                            <img src={work.coverImageUrl} alt={work.title || 'Ảnh'} loading="lazy" />
+                                            <Image src={work.coverImageUrl} alt={work.title || 'Ảnh'} width={400} height={400} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} sizes="(max-width: 768px) 33vw, 312px" />
                                         )
                                     ) : (
                                         <div className="insta-grid__placeholder">
@@ -150,7 +137,7 @@ export default async function WorksPage({ searchParams }: Props) {
                                 <div className="feed-card__header">
                                     <span className="feed-card__genre">{getLabel(work.genre)}</span>
                                     {work.isFeatured && <span className="poem-card__star">Nổi bật</span>}
-                                    {work.publishedAt && <span className="feed-card__date">{formatDate(work.publishedAt)}</span>}
+                                    {(() => { const d = (work as any).writtenAt || work.publishedAt; return d && <span className="feed-card__date">{formatDate(d)}</span> })()}
                                 </div>
                                 {work.title && <Link href={`/tac-pham/${work.slug}`} className="feed-card__title">{work.title}</Link>}
 
@@ -160,7 +147,7 @@ export default async function WorksPage({ searchParams }: Props) {
                                             <video src={work.coverImageUrl} controls muted playsInline preload="none" style={{ width: '100%', maxHeight: 420, objectFit: 'cover', background: '#000' }} />
                                         ) : (
                                             <Link href={`/tac-pham/${work.slug}`}>
-                                                <img src={work.coverImageUrl} alt={work.title ?? ''} loading="lazy" style={{ width: '100%', maxHeight: 420, objectFit: 'cover' }} />
+                                                <Image src={work.coverImageUrl} alt={work.title ?? ''} width={800} height={420} loading="lazy" style={{ width: '100%', maxHeight: 420, objectFit: 'cover' }} sizes="(max-width: 768px) 100vw, 800px" />
                                             </Link>
                                         )}
                                     </div>
@@ -191,13 +178,32 @@ export default async function WorksPage({ searchParams }: Props) {
                 </div>
             )}
 
-            {totalPages > 1 && (
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 12, padding: '24px 0 40px' }}>
-                    {page > 1 && <Link href={buildPageUrl(page - 1)} className="pub-tab">← Trước</Link>}
-                    <span style={{ padding: '6px 12px', color: 'var(--text-muted)', fontSize: 13 }}>Trang {page} / {totalPages}</span>
-                    {page < totalPages && <Link href={buildPageUrl(page + 1)} className="pub-tab">Tiếp →</Link>}
-                </div>
-            )}
+            {/* Pagination */}
+            <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexWrap: 'wrap', gap: 6, padding: '24px 0 40px',
+                fontFamily: "'Inter', sans-serif", fontSize: 13,
+            }}>
+                <span style={{ color: 'var(--text-muted)', marginRight: 8, width: '100%', textAlign: 'center' }}>
+                    {total.toLocaleString('vi-VN')} tác phẩm · Trang {page}/{totalPages}
+                </span>
+                {page > 1 && <Link href={buildPageUrl(1)} className="pub-tab">« Đầu</Link>}
+                {page > 1 && <Link href={buildPageUrl(page - 1)} className="pub-tab">← Trước</Link>}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                    .map((p, i, arr) => (
+                        <span key={p} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {i > 0 && arr[i - 1] !== p - 1 && <span style={{ color: 'var(--text-muted)' }}>…</span>}
+                            <Link href={buildPageUrl(p)} className="pub-tab"
+                                style={p === page ? { background: 'var(--accent)', color: '#fff', borderColor: 'transparent' } : {}}>
+                                {p}
+                            </Link>
+                        </span>
+                    ))}
+                {page < totalPages && <Link href={buildPageUrl(page + 1)} className="pub-tab">Tiếp →</Link>}
+                {page < totalPages && <Link href={buildPageUrl(totalPages)} className="pub-tab">Cuối »</Link>}
+            </div>
+            </WorksSmartSearch>
         </>
     )
 }

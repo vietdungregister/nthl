@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { after } from 'next/server'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { chunkAndEmbed } from '@/lib/chunkAndEmbed'
 
 // GET /api/works - List works (with filters, search, pagination)
 export async function GET(request: NextRequest) {
@@ -9,6 +11,11 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const genre = searchParams.get('genre')
     const search = searchParams.get('search')
+    const tagSlug = searchParams.get('tag')          // filter by tag slug
+    const dateFrom = searchParams.get('dateFrom')    // createdAt range from
+    const dateTo = searchParams.get('dateTo')        // createdAt range to
+    const writtenFrom = searchParams.get('writtenFrom') // writtenAt range from
+    const writtenTo = searchParams.get('writtenTo')     // writtenAt range to
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     // SEC-016: cap limit to prevent full-table dumps
     const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '20')), 100)
@@ -24,17 +31,55 @@ export async function GET(request: NextRequest) {
     }
 
     if (genre) where.genre = genre
+
     if (search) {
         where.OR = [
-            { title: { contains: search } },
-            { content: { contains: search } },
-            { excerpt: { contains: search } },
+            { title: { contains: search, mode: 'insensitive' } },
+            { content: { contains: search, mode: 'insensitive' } },
+            { excerpt: { contains: search, mode: 'insensitive' } },
         ]
     }
 
-    const orderBy = sort === 'oldest' ? { createdAt: 'asc' as const } :
-        sort === 'title' ? { title: 'asc' as const } :
-            { createdAt: 'desc' as const }
+    // Filter by tag slug — join through WorkTag → Tag
+    if (tagSlug) {
+        where.tags = { some: { tag: { slug: tagSlug } } }
+    }
+
+    // Filter by date range on createdAt
+    if (dateFrom || dateTo) {
+        const createdAt: Record<string, Date> = {}
+        if (dateFrom) createdAt.gte = new Date(dateFrom)
+        if (dateTo) {
+            const end = new Date(dateTo)
+            end.setHours(23, 59, 59, 999)
+            createdAt.lte = end
+        }
+        where.createdAt = createdAt
+    }
+
+    // Filter by date range on writtenAt
+    if (writtenFrom || writtenTo) {
+        const writtenAt: Record<string, Date> = {}
+        if (writtenFrom) writtenAt.gte = new Date(writtenFrom)
+        if (writtenTo) {
+            const end = new Date(writtenTo)
+            end.setHours(23, 59, 59, 999)
+            writtenAt.lte = end
+        }
+        where.writtenAt = writtenAt
+    }
+
+    const orderBy = (() => {
+        switch (sort) {
+            case 'oldest':       return { createdAt: 'asc' as const }
+            case 'title':        return { title: 'asc' as const }
+            case 'title_desc':   return { title: 'desc' as const }
+            case 'views':        return { viewCount: 'desc' as const }
+            case 'writtenAt_desc': return { writtenAt: 'desc' as const }
+            case 'writtenAt_asc':  return { writtenAt: 'asc' as const }
+            default:             return { createdAt: 'desc' as const }
+        }
+    })()
 
     const [works, total] = await Promise.all([
         prisma.work.findMany({
@@ -42,7 +87,12 @@ export async function GET(request: NextRequest) {
             orderBy,
             skip: (page - 1) * limit,
             take: limit,
-            include: {
+            // select thay vì include — KHÔNG load content (vài trăm KB/work)
+            select: {
+                id: true, title: true, slug: true, genre: true,
+                status: true, excerpt: true, coverImageUrl: true,
+                isFeatured: true, viewCount: true,
+                createdAt: true, publishedAt: true, writtenAt: true,
                 tags: { include: { tag: true } },
                 collections: { include: { collection: true } },
             },
@@ -62,7 +112,7 @@ export async function POST(request: NextRequest) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body = await request.json()
-    const { title, slug, genre, content, excerpt, coverImageUrl, status, publishedAt, scheduledAt, isFeatured, featuredDate, seoTitle, seoDescription, ogImageUrl, tagIds, collectionIds } = body
+    const { title, slug, genre, content, excerpt, coverImageUrl, status, publishedAt, scheduledAt, isFeatured, featuredDate, writtenAt, translations, seoTitle, seoDescription, ogImageUrl, tagIds, collectionIds } = body
 
     const isMediaGenre = genre === 'photo' || genre === 'video'
     if (!slug || !genre) {
@@ -85,12 +135,19 @@ export async function POST(request: NextRequest) {
             scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
             isFeatured: isFeatured || false,
             featuredDate: featuredDate ? new Date(featuredDate) : null,
+            writtenAt: writtenAt ? new Date(writtenAt) : null,
+            translations: translations || null,
             seoTitle, seoDescription, ogImageUrl,
             tags: tagIds?.length ? { create: tagIds.map((id: string) => ({ tagId: id })) } : undefined,
             collections: collectionIds?.length ? { create: collectionIds.map((id: string) => ({ collectionId: id })) } : undefined,
         },
         include: { tags: { include: { tag: true } }, collections: { include: { collection: true } } },
     })
+
+    // Auto-index: tạo chunks + embeddings sau khi response trả về user
+    if (content) {
+        after(() => chunkAndEmbed(work.id, content))
+    }
 
     return NextResponse.json(work, { status: 201 })
 }

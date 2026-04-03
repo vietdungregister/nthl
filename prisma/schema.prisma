@@ -2,7 +2,7 @@ generator client {
   provider      = "prisma-client-js"
   // native: dùng khi chạy trên Windows (dev)
   // debian-openssl-1.1.x: dùng khi chạy trong Docker container (node:20-slim)
-  binaryTargets = ["native", "debian-openssl-1.1.x"]
+  binaryTargets = ["native", "debian-openssl-1.1.x", "darwin-arm64"]
 }
 
 
@@ -39,6 +39,11 @@ model Work {
   isFeatured     Boolean  @default(false)
   featuredDate   DateTime?
 
+  // Ngày tác giả sáng tác (optional, khác publishedAt)
+  writtenAt      DateTime?
+  // Bản dịch & ghi chú bổ sung — lưu JSON: [{ lang, title?, content, note? }]
+  translations   String?
+
   seoTitle       String?
   seoDescription String?
   ogImageUrl     String?
@@ -52,6 +57,12 @@ model Work {
   tags           WorkTag[]
   collections    WorkCollection[]
   comments       Comment[]
+  chunks         ChatChunk[]
+
+  // Metadata từ Facebook import
+  source         String?                 // "facebook" | null
+  fbTimestamp    Int?                    // unix timestamp gốc
+  autoClassified Boolean  @default(false) // do AI phân loại tự động
 
   // Performance indexes cho các query phổ biến
   // [status, deletedAt, publishedAt] → filter published + sort theo ngày (trang chủ, danh sách)
@@ -157,3 +168,66 @@ model Book {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+// ── Chatbot "Thơ Máy" ──────────────────────────────────────────────────────
+
+/// Chunk 1-2 dòng của tác phẩm, dùng cho chatbot trả về gợi ý ngẫu nhiên
+model ChatChunk {
+  id        String   @id @default(uuid())
+  workId    String
+  work      Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  content   String                      // 1-2 dòng text
+  // embedding: vector(3072) — lưu thủ công qua raw SQL vì Prisma chưa hỗ trợ pgvector
+  score     Float    @default(0)        // tích lũy từ feedback: 👍 +1, 👎 -1
+  isBlocked Boolean  @default(false)   // tác giả block vĩnh viễn
+
+  createdAt DateTime @default(now())
+
+  feedbacks ChatFeedback[]
+
+  @@index([workId])
+  @@index([isBlocked, score(sort: Desc)])
+}
+
+/// Feedback từ user hoặc tác giả sau mỗi lần chatbot trả kết quả
+model ChatFeedback {
+  id       String    @id @default(uuid())
+  chunkId  String
+  chunk    ChatChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+  query    String                        // user gõ gì
+  rating   Int                           // +1 (👍) hoặc -1 (👎)
+  isAuthor Boolean   @default(false)    // tác giả feedback → weight ×3
+
+  createdAt DateTime @default(now())
+
+  @@index([chunkId])
+  @@index([createdAt(sort: Desc)])
+}
+
+/// Quy tắc tác giả dạy AI — Tầng 1 (Form) hoặc Tầng 2 (AI parse)
+model AuthorInstruction {
+  id          String   @id @default(uuid())
+  type        String                    // "correction" | "rule" | "reclassify"
+  query       String?                   // trigger keyword
+  badChunkId  String?                   // chunk bị sửa
+  goodChunkId String?                   // chunk thay thế
+  instruction String                    // text gốc tác giả gõ (Tầng 2)
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+
+  @@index([isActive, query])
+}
+
+/// Bộ nhớ dài hạn AI — tác giả dạy AI hiểu phong cách, triết lý, preference
+model AuthorMemory {
+  id        String   @id @default(uuid())
+  content   String                      // "Tác giả thích giọng hài hước, triết lý nhẹ"
+  category  String                      // "style" | "preference" | "philosophy" | "rule"
+  source    String                      // "chat" | "feedback" | "manual"
+
+  createdAt DateTime @default(now())
+
+  @@index([category])
+}
+

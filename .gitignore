@@ -57,3 +57,11 @@ profile.json
 
 # Claude Code local settings (Windows-specific paths)
 .claude/settings.local.json
+
+# Large data folders — không commit lên git (dùng scp/rsync để deploy)
+/media/
+/output/
+/data/
+/facebook-nguyenthehoanglinh-06_03_2026-y1cYzpJi/
+*.dump
+*.tar.gz

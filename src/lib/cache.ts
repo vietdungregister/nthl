@@ -30,3 +30,37 @@ export const getCachedAuthorProfile = unstable_cache(
   ['author-profile'],
   { revalidate: 86400, tags: ['author-profile'] } // 24h
 )
+
+/** Số lượng tác phẩm theo thể loại — dùng cho sidebar */
+export const getCachedGenreCounts = unstable_cache(
+  async () => {
+    const counts = await prisma.work.groupBy({
+      by: ['genre'],
+      where: { status: 'published', deletedAt: null },
+      _count: { _all: true },
+    })
+    return counts.map(c => ({ genre: c.genre, _count: c._count._all }))
+  },
+  ['genre-counts'],
+  { revalidate: 300, tags: ['genre-counts'] } // 5 phút
+)
+
+/** Danh sách sách — thay đổi rất hiếm */
+export const getCachedBooks = unstable_cache(
+  () => prisma.book.findMany({
+    orderBy: [{ order: 'asc' }, { year: 'desc' }],
+    select: { id: true, slug: true, title: true, publisher: true, year: true, coverImage: true },
+  }),
+  ['books'],
+  { revalidate: 3600, tags: ['books'] } // 1h
+)
+
+/** Danh sách bộ sưu tập — thay đổi rất hiếm */
+export const getCachedCollections = unstable_cache(
+  () => prisma.collection.findMany({
+    orderBy: { order: 'asc' },
+    include: { _count: { select: { works: true } } },
+  }),
+  ['collections'],
+  { revalidate: 3600, tags: ['collections'] } // 1h
+)
