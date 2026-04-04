@@ -29,6 +29,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@google/genai": "^1.48.0",
     "@google/generative-ai": "^0.24.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
