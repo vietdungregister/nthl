@@ -85,6 +85,32 @@ Nếu build không có `--platform`, image SẼ KHÔNG chạy được trên ser
 ### 7. Git: branch name
 Kiểm tra branch name trước khi push — local có thể là `master` trong khi remote là `main` hoặc ngược lại.
 
+### 8. Service name vs container_name trong docker-compose
+`docker compose stop/up` dùng **service name** (key dưới `services:`), KHÔNG phải `container_name`.
+Ví dụ:
+```yaml
+services:
+  app:                        ← Đây là SERVICE NAME (dùng trong docker compose stop app)
+    container_name: vibe-app  ← Đây chỉ là tên hiển thị khi docker ps
+```
+Nếu dùng nhầm `docker compose stop vibe-app` sẽ báo `no such service`.
+Kiểm tra service name: `grep -B5 'container_name:' docker-compose.yml`
+
+### 9. pgvector HNSW giới hạn 2000 dims
+HNSW/IVFFlat index cho `vector` type bị giới hạn **tối đa 2000 dimensions**.
+Nếu dùng `text-embedding-3-large` (3072d), phải cast sang **`halfvec(3072)`**:
+```sql
+-- ❌ Sẽ lỗi với 3072d
+CREATE INDEX ... USING hnsw (embedding vector_cosine_ops);
+
+-- ✅ Dùng halfvec — hỗ trợ đến 4000 dims
+CREATE INDEX ... USING hnsw ((embedding::halfvec(3072)) halfvec_cosine_ops);
+```
+Và trong query cũng phải cast để index được dùng:
+```sql
+ORDER BY c.embedding::halfvec(3072) <=> $1::halfvec(3072)
+```
+
 ## Quy trình thực thi (7 phases)
 
 ---
@@ -327,3 +353,41 @@ ssh root@SERVER_IP '
 ```
 
 Thời gian: **~5 phút**.
+
+## SQL Migration trực tiếp trên Production
+
+Khi chỉ cần chạy migration SQL (không redeploy toàn bộ), ví dụ tạo index:
+
+```bash
+# Chạy migration SQL trên production DB
+ssh root@SERVER_IP "docker exec CONTAINER_DB psql -U DB_USER -d DB_NAME -c 'SQL_STATEMENT'"
+
+# Hoặc chạy file SQL (copy lên server trước)
+scp prisma/migrations/MIGRATION/migration.sql root@SERVER_IP:~/migration.sql
+ssh root@SERVER_IP "docker exec -i CONTAINER_DB psql -U DB_USER -d DB_NAME < ~/migration.sql"
+```
+
+**Ví dụ thực tế — tạo HNSW index (chạy CONCURRENTLY để không block app):**
+```bash
+ssh root@SERVER_IP "docker exec CONTAINER_DB psql -U DB_USER -d DB_NAME -c \
+  \"CREATE INDEX CONCURRENTLY IF NOT EXISTS \\\"ChatChunk_embedding_hnsw_idx\\\" \
+  ON \\\"ChatChunk\\\" USING hnsw ((embedding::halfvec(3072)) halfvec_cosine_ops) \
+  WITH (m = 16, ef_construction = 64);\""
+```
+
+**Thời gian tạo HNSW index**: ~5-30 phút tuỳ số lượng rows và RAM.
+Tăng memory cho nhanh hơn (nếu có quyền superuser):
+```bash
+ssh root@SERVER_IP "docker exec CONTAINER_DB psql -U DB_USER -d DB_NAME -c \"ALTER SYSTEM SET maintenance_work_mem = '512MB';\"" 
+ssh root@SERVER_IP "docker exec CONTAINER_DB psql -U DB_USER -d DB_NAME -c \"SELECT pg_reload_conf();\""
+```
+
+**Verify index đã tạo thành công:**
+```bash
+ssh root@SERVER_IP "docker exec CONTAINER_DB psql -U DB_USER -d DB_NAME -c \
+  \"SELECT c.relname, i.indisvalid FROM pg_index i \
+  JOIN pg_class c ON c.oid=i.indexrelid \
+  JOIN pg_class t ON t.oid=i.indrelid \
+  WHERE t.relname='ChatChunk';\""
+```
+
