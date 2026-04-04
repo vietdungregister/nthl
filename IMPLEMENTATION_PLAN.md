@@ -59,7 +59,8 @@
   - `WorkTag` (workId, tagId) — junction table
   - `WorkCollection` (workId, collectionId) — junction table
   - `AuthorProfile` (singleton, có thể là JSON config hoặc table)
-- [ ] Định nghĩa enum `Genre`: `poem | novel | essay | prose | painting | photo | video`
+- [x] Định nghĩa enum `Genre`: `stt | poem | essay | short_story | novel | memoir | children | photo | video`
+  > ⚠️ Genre `prose` đã được rename thành `stt` (Status) vào 2026-04-04. Xem Phase Genre Fix bên dưới.
 - [ ] Định nghĩa enum `WorkStatus`: `draft | published | scheduled`
 - [ ] Định nghĩa enum `MediaType`: `image | video | pdf`
 - [ ] Tạo indexes: `Work.slug (unique)`, `Work.status`, `Work.genre`, `Tag.slug (unique)`, `Collection.slug (unique)`
@@ -362,8 +363,8 @@
 - [x] Search (`/tim-kiem`): PostgreSQL full-text search thay LIKE
 
 **⚠️ Known Issue — `/tac-pham` search filter:**
-- Trang `/tac-pham?search=...` dùng `contains` (LIKE) trên `content`
-- Với 10k tác phẩm × 3-4GB content, cần chuyển sang FTS khi có nhiều traffic
+- ~~Trang `/tac-pham?search=...` dùng `contains` (LIKE) trên `content`~~ → **ĐÃ FIX**: Chuyển sang `WorksSmartSearch` component (hybrid vector + FTS)
+- ~~Với 10k tác phẩm × 3-4GB content, cần chuyển sang FTS khi có nhiều traffic~~ → **DONE**
 - Workaround: Redirect search về `/tim-kiem?q=...` thay vì filter inline
 
 **Còn lại:**
@@ -459,6 +460,39 @@
 
 ---
 
+## Phase Genre Fix — ĐÃ HOÀN THÀNH (2026-04-04)
+
+> **Vấn đề**: Sidebar "Tất cả" hiện 23,921 nhưng tổng các category chỉ 13,617 → thiếu 10,304.
+> **Nguyên nhân**: 10,304 works có `genre = "prose"` nhưng Genre table không có entry `prose`.
+
+### Thay đổi đã thực hiện
+
+- [x] Tạo genre mới `stt` (Status) trong Genre table — label: "Stt", emoji: 📄
+- [x] Migrate 10,304 works: `genre = 'prose'` → `genre = 'stt'`
+- [x] Xóa Genre entries trùng lặp: `Tản văn` (tiếng Việt), `Bút ký` (tiếng Việt)
+- [x] Normalize 1 work orphan (`Tản văn` Unicode variant) → `essay`
+- [x] Verify: SUM(genre counts) = 23,921 = Total works ✅
+- [x] Deploy v5 lên production server (build + DB restore)
+
+### Genre Table hiện tại (production)
+
+| Order | Value | Label | Emoji | Works |
+|-------|-------|-------|-------|-------|
+| 0 | `stt` | Stt | 📄 | 10,304 |
+| 1 | `poem` | Thơ | 📝 | 9,055 |
+| 2 | `short_story` | Truyện ngắn | 📖 | 0 |
+| 3 | `essay` | Tản văn | ✍️ | 3 |
+| 4 | `novel` | Tiểu thuyết | 📚 | 0 |
+| 5 | `memoir` | Bút ký | 🖊️ | 1 |
+| 6 | `children` | Thơ thiếu nhi | 🧒 | 0 |
+| 7 | `photo` | Ảnh | 📷 | 3,003 |
+| 8 | `video` | Video | 🎬 | 1,555 |
+
+> **Lưu ý**: Genre `prose` **không còn tồn tại** trong DB. Tất cả works cũ có genre `prose`
+> đã được chuyển sang `stt`. Code import mới cần dùng `stt` thay vì `prose`.
+
+---
+
 ## Notes & Quyết Định Kiến Trúc
 
 | Vấn đề | Quyết định | Lý do |
@@ -474,3 +508,428 @@
 ---
 
 *Kế hoạch này sẽ được cập nhật khi tiến hành code. Tick [x] khi hoàn thành từng mục.*
+
+---
+---
+
+# PHASE DATA: Data Pipeline + Chatbot "Thơ Máy" + AI NTHL
+
+> **Mục tiêu**: Xây nền tảng data sạch từ Facebook export → seed vào PostgreSQL → chatbot "thơ máy" (semantic search + random) → tác giả dạy AI qua CMS → AI personal hóa theo phong cách NTHL.
+>
+> **Nguồn dữ liệu**: `facebook-nguyenthehoanglinh-06_03_2026-y1cYzpJi/` (61.884 bài, 1.041 Notes, 4.247 comments)
+> **Script hiện tại**: `export_to_docx.py` (đã có dedup, comment matching, encoding fix)
+
+---
+
+## DATA.1 — Dọn dữ liệu: Loại bỏ "shared a memory"
+
+### Vấn đề
+- Có ~19.000 bài "shared a memory" (sau dedup) → duplicate nội dung bài gốc
+- Tác giả yêu cầu: **loại bỏ hoàn toàn**, log danh sách đã loại
+
+### Thực hiện
+
+#### [MODIFY] export_to_docx.py
+- Thêm `filter_shares()` sau `dedup_posts()` trong `main()`
+- Lọc ra tất cả bài có title chứa `"shared a memory"` hoặc `"shared a post"`
+- Ghi danh sách bài đã loại ra `output/data/works_removed_shares.json`
+
+#### [NEW] output/data/works_removed_shares.json
+- Mỗi entry: `{timestamp, date, title, text_preview, original_date}`
+- Mục đích: log để tác giả tra cứu nếu cần
+
+### Thống kê ước tính
+
+| Loại | Trước | Sau |
+|------|-------|-----|
+| Tổng bài (sau dedup) | 52.099 | ~20.000 |
+| Shared a memory | ~19.000 | 0 |
+| Shared other | ~6.000 | ~6.000 (giữ) |
+| Bài gốc | ~20.000 | ~20.000 |
+
+---
+
+## DATA.2 — Phân loại tác phẩm (Rule-based)
+
+### Rules phân loại
+
+```python
+def classify_work(text, title, has_media, media_type):
+    lines = [l for l in text.split('\n') if l.strip()]
+    avg_line_len = sum(len(l) for l in lines) / max(len(lines), 1)
+    
+    if media_type == 'video':
+        if 'fifa' in text.lower() or 'fifa' in title.lower():
+            return 'video_fifa'
+        if 'chatgpt' in text.lower() or 'gpt' in text.lower():
+            return 'video_chatgpt'
+        return 'video'
+    
+    if has_media and media_type == 'image' and len(text) < 50:
+        return 'photo'
+    
+    if len(lines) >= 4 and avg_line_len < 50:
+        return 'poem'
+        
+    if len(text) > 300 and len(lines) < len(text) / 80:
+        return 'stt'  # WAS 'prose', renamed 2026-04-04
+     
+    return 'stt'  # WAS 'status' → 'prose', renamed 2026-04-04
+```
+
+### Genre mapping (CẬP NHẬT 2026-04-04)
+
+| Auto-classify | DB genre | Label sidebar | Emoji |
+|--------------|---------|--------------|-------|
+| `poem` | `poem` | Thơ | 📝 |
+| `prose` / `status` | `stt` | Stt | 📄 |
+| `video` / `video_fifa` / `video_chatgpt` | `video` | Video | 🎬 |
+| `photo` | `photo` | Ảnh | 📷 |
+| `essay` | `essay` | Tản văn | ✍️ |
+| `memoir` | `memoir` | Bút ký | 🖊️ |
+
+> ⚠️ **QUAN TRỌNG**: Genre `prose` đã bị xóa khỏi DB (2026-04-04). Code import mới phải dùng `stt`.
+> Phân loại chỉ là gợi ý. Tác giả sửa qua CMS → DB cập nhật ngay.
+
+---
+
+## DATA.3 — Structured Data → JSON
+
+#### [NEW] output/data/works.json
+```json
+{
+  "id": "uuid", "title": "...", "slug": "...",
+  "genre": "poem", "content": "...", "excerpt": "...",
+  "status": "published", "publishedAt": "2017-10-06T00:00:00Z",
+  "tags": ["auto:poem", "auto:2017"],
+  "source": "facebook", "fbTimestamp": 1507276800,
+  "autoClassified": true,
+  "comments": [{"content": "...", "name": "...", "createdAt": "..."}]
+}
+```
+
+#### [NEW] output/data/poems_only.json — Thư viện thơ riêng
+#### [NEW] output/data/notes.json — 1.041 Notes đã clean HTML
+
+---
+
+## DATA.4 — Chunking cho Chatbot "Thơ Máy"
+
+Tác giả muốn: **trả về 1-2 dòng nổi bật + link đến cả bài**
+
+```python
+def chunk_work(work):
+    chunks = []
+    lines = work['content'].split('\n')
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if len(line) < 10: continue
+        if len(line) > 120:
+            for s in re.split(r'[.!?]', line):
+                if len(s.strip()) >= 10: chunks.append(s.strip())
+        else:
+            if i + 1 < len(lines) and len(line) < 60:
+                next_line = lines[i+1].strip()
+                if next_line and len(next_line) < 60:
+                    chunks.append(f"{line}\n{next_line}")
+                    continue
+            chunks.append(line)
+    return chunks
+```
+
+#### [NEW] output/data/chunks.json
+Ước tính: ~20.000 bài × ~5 chunks/bài = **~100.000 chunks**
+
+---
+
+## DATA.5 — Vector Embeddings
+
+- **Model**: OpenAI `text-embedding-3-large` (3072 dimensions, chất lượng tốt nhất)
+- **Chi phí**: ~$1 cho 100K chunks (1 lần duy nhất)
+- **Lưu trữ**: PostgreSQL `pgvector` extension
+
+#### [NEW] scripts/generate_embeddings.py
+```python
+# Generate embeddings in batches of 100
+for batch in batched(chunks, 100):
+    response = openai.embeddings.create(
+        model="text-embedding-3-large", input=[c['content'] for c in batch]
+    )
+    for chunk, emb in zip(batch, response.data):
+        chunk['embedding'] = emb.embedding
+```
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+---
+
+## DATA.6 — DB Schema mới
+
+#### [MODIFY] prisma/schema.prisma
+
+```prisma
+// ── Chatbot "Thơ Máy" ──
+
+model ChatChunk {
+  id          String   @id @default(uuid())
+  workId      String
+  work        Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  content     String
+  embedding   Unsupported("vector(3072)")?  // pgvector (text-embedding-3-large)
+  score       Float    @default(0)
+  isBlocked   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  feedbacks   ChatFeedback[]
+  @@index([workId])
+  @@index([isBlocked, score(sort: Desc)])
+}
+
+model ChatFeedback {
+  id        String    @id @default(uuid())
+  chunkId   String
+  chunk     ChatChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+  query     String
+  rating    Int                           // +1 (👍) hoặc -1 (👎)
+  isAuthor  Boolean   @default(false)     // weight ×3
+  createdAt DateTime  @default(now())
+  @@index([chunkId])
+}
+
+model AuthorInstruction {
+  id          String   @id @default(uuid())
+  type        String              // "correction" | "rule" | "reclassify"
+  query       String?
+  badChunkId  String?
+  goodChunkId String?
+  instruction String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+// ── AI Memory (tác giả dạy AI hiểu mình) ──
+
+model AuthorMemory {
+  id        String   @id @default(uuid())
+  content   String              // "Tác giả thích giọng hài hước"
+  category  String              // "style" | "preference" | "philosophy" | "rule"
+  source    String              // "chat" | "feedback" | "manual"
+  createdAt DateTime @default(now())
+}
+
+// Thêm relation vào Work:
+// model Work { ... chunks ChatChunk[] }
+```
+
+---
+
+## DATA.7 — Seed Script
+
+#### [NEW] scripts/seed_db.py
+```
+1. Đọc output/data/works.json
+2. Đọc output/data/chunks_with_embeddings.json
+3. Kết nối PostgreSQL (localhost:5433, vibe_db)
+4. INSERT works → Work table
+5. INSERT chunks + embeddings → ChatChunk table
+6. Tạo genres + tags auto (year, genre)
+7. In thống kê
+```
+
+---
+
+## DATA.8 — Media Catalog
+
+#### [NEW] output/data/media_catalog.json
+Nguồn: `media/` folder (2.302 ảnh + 381 video)
+
+| Category | Cách phân loại |
+|----------|---------------|
+| Video Fifa | description chứa "Fifa" |
+| Video ChatGPT | description chứa "GPT/ChatGPT" |
+| Video khác | còn lại |
+| Ảnh (chưa phân tranh/ảnh) | tác giả tag sau |
+
+---
+
+## DATA.9 — Cập nhật file Word
+
+#### [MODIFY] export_to_docx.py
+- `filter_shares()` → 15 file posts không còn "shared a memory"
+
+#### [NEW] output/NTHL_Tho.docx
+- Tách tất cả bài `genre=poem` thành file riêng
+
+---
+
+## DATA.10 — Chatbot API (3 tầng, bật tắt được)
+
+#### [NEW] src/app/api/chat-poem/route.ts
+
+```typescript
+async function chatPoem(query: string) {
+  // 0. Check AuthorInstruction rules
+  const rule = await findMatchingRule(query)
+  if (rule) return applyRule(rule)
+
+  // 1. Tầng 1 (Free): pgvector cosine search
+  const queryEmbedding = await getEmbedding(query)
+  const results = await db.$queryRaw`
+    SELECT c.*, w.title, w.slug,
+           1 - (c.embedding <=> ${queryEmbedding}::vector) as similarity
+    FROM "ChatChunk" c
+    JOIN "Work" w ON c."workId" = w.id
+    WHERE c."isBlocked" = false
+    ORDER BY (similarity * 0.7 + c.score * 0.3) DESC
+    LIMIT 10
+  `
+  // Random trong top 5 (tạo cảm giác "duyên")
+  const chosen = results[Math.floor(Math.random() * Math.min(5, results.length))]
+
+  // 2. Tầng 2 (Optional, $): GPT re-rank
+  if (process.env.CHAT_TIER === '2') {
+    chosen = await gptRerank(query, results)
+  }
+
+  return chosen
+}
+```
+
+Config: `CHAT_TIER=1` (free) hoặc `CHAT_TIER=2` (GPT, ~$0.005/query)
+
+---
+
+## DATA.11 — CMS: Trang "Dạy Thơ Máy"
+
+#### [NEW] src/app/(cms)/day-tho-may/page.tsx
+
+```
+┌─────────────────────────────────────────────┐
+│  🎓 Dạy Thơ Máy                             │
+│                                             │
+│  [📋 Tầng 1: Form (Free)] [🤖 Tầng 2: AI ($)]│
+│                                             │
+│  Thử chat: [_______________] [Gửi]         │
+│                                             │
+│  Kết quả: "Mưa rơi trên mái nhà..."        │
+│  [👍 +3] [👎 -3] [✏️ Sửa] [🚫 Block]       │
+│                                             │
+│  ── Tầng 1: Form (SQL thuần, $0) ──         │
+│  • Dropdown sửa kết quả                     │
+│  • Dropdown đổi thể loại                    │
+│  • Thêm/xóa quy tắc                        │
+│                                             │
+│  ── Tầng 2: AI Chat (GPT, ~$0.005/msg) ──  │
+│  Gõ tự nhiên → GPT parse → xác nhận → lưu  │
+│  [Toggle ON/OFF] Chi phí: $0.015            │
+│                                             │
+│  📊 Thống kê | 📋 Lịch sử | 📏 Quy tắc     │
+└─────────────────────────────────────────────┘
+```
+
+**Tầng 1 (Form)**: Tác giả dùng dropdown/form → code INSERT vào DB → $0
+**Tầng 2 (AI)**: Tác giả gõ tự do → GPT parse thành actions → hiển thị xác nhận → tác giả approve → INSERT vào DB → ~$0.005/msg
+
+---
+
+## DATA.12 — AI Personalization: "AI NTHL"
+
+### 12.1 Kiến trúc 3 lớp
+
+```
+Lớp 1: RETRIEVAL — pgvector + 20K works + 100K chunks
+  → "Tìm đúng tác phẩm của NTHL"
+
+Lớp 2: MEMORY — AuthorMemory DB + conversation history
+  → "Nhớ tác giả thích gì, ghét gì, triết lý gì"
+
+Lớp 3: PERSONALITY — Fine-tuned GPT trên kho tác phẩm
+  → "Viết, nghĩ, phản ứng như NTHL"
+```
+
+### 12.2 Stack tối ưu
+
+| Thành phần | Lựa chọn | Lý do |
+|-----------|---------|-------|
+| Framework | **Vercel AI SDK** | Native Next.js, streaming, tool calling |
+| Chat model | **GPT-4o-mini** → **Fine-tuned GPT** | 4o-mini rẻ + tốt. Fine-tune khi đủ data |
+| Embedding | **text-embedding-3-large** | Tốt hơn `small` ~10-15% |
+| Vector DB | **pgvector** | Đã có PostgreSQL |
+| Memory | **PostgreSQL AuthorMemory** | Toàn quyền kiểm soát |
+
+### 12.3 Lộ trình cá nhân hóa
+
+**Cấp 1 — Memory (ngay bây giờ, $0):**
+```
+Tác giả chat: "Anh thích giọng thơ hài hước, triết lý nhẹ nhàng"
+  → Lưu AuthorMemory
+  → System prompt tự cập nhật
+  → AI trả lời phù hợp hơn ngay
+```
+
+**Cấp 2 — Fine-tune (khi đủ ~500 feedback, ~$10-50):**
+```
+Export: 20K bài + memories + feedbacks → training data JSONL
+  → OpenAI Fine-tuning API (GPT-4o-mini)
+  → Ra model: ft:gpt-4o-mini-NTHL
+  → AI "viết giống NTHL" 95%
+```
+
+**Cấp 3 — AI NTHL toàn diện (tương lai):**
+```
+Fine-tuned model + Memory + RAG + Tools:
+  • Trả thơ (semantic search)
+  • Nối thơ (viết tiếp giống NTHL)
+  • Đọc thơ (TTS)
+  • Phân loại tác phẩm
+  • Trả lời câu hỏi về tác giả
+  • Nhớ mọi thứ tác giả dạy
+```
+
+### 12.4 Chi phí vận hành ước tính
+
+| Hạng mục | Cấp 1 | Cấp 2 | Cấp 3 |
+|---------|-------|-------|-------|
+| Setup | $1 (embedding) | +$10-50 (fine-tune) | +$0 (code) |
+| /tháng (1000 users) | $0.50 | $5-15 | $10-20 |
+
+---
+
+## DATA.13 — Thứ tự thực hiện
+
+| Bước | Công việc | Phụ thuộc |
+|------|----------|-----------|
+| 1 | `filter_shares()` + log bài đã loại | - |
+| 2 | `classify_work()` rule-based | Bước 1 |
+| 3 | Tạo `works.json` + `poems_only.json` + `notes.json` | Bước 2 |
+| 4 | `chunk_work()` → `chunks.json` | Bước 3 |
+| 5 | Tạo `media_catalog.json` | - (song song) |
+| 6 | Cập nhật 15 file Word (không share) + tạo `NTHL_Tho.docx` | Bước 2 |
+| 7 | Update Prisma schema (+ChatChunk, ChatFeedback, AuthorInstruction, AuthorMemory) | - |
+| 8 | `prisma migrate dev` + install pgvector | Bước 7 |
+| 9 | `seed_db.py` — import works + chunks | Bước 3, 4, 8 |
+| 10 | `generate_embeddings.py` — vectors | Bước 4, cần OPENAI_API_KEY |
+| 11 | Insert embeddings vào DB | Bước 10 |
+| 12 | API `/api/chat-poem` | Bước 8, 11 |
+| 13 | Frontend "Thơ Máy" widget + 👍👎 | Bước 12 |
+| 14 | CMS "Dạy Thơ Máy" (Tầng 1 Form + Tầng 2 AI) | Bước 12 |
+
+> **Bước 1-6** chạy ngay (data pipeline, không cần web app).
+> **Bước 7-14** cần web app + PostgreSQL chạy trên Mac.
+> **Bước 10** cần `OPENAI_API_KEY` trong `.env`.
+
+---
+
+## DATA.14 — Thiết kế mở rộng (tương lai)
+
+| Tính năng | Cần thêm |
+|-----------|---------|
+| **Nối thơ** (AI viết tiếp giống NTHL) | Fine-tuned GPT + few-shot examples |
+| **Robot đọc thơ** (TTS) | OpenAI TTS / ElevenLabs API |
+| **Trò chơi thơ** (quiz, ghép câu) | Game logic + UI, data sẵn trong chunks |
+| **Fine-tune GPT-4o-mini** | 500+ feedbacks → JSONL → OpenAI API |
+| **Tăng độ nét media** | Real-ESRGAN script |
+| **Bán premium** | Stripe subscription |
+| **Multi-agent content** | Orchestrator + specialist agents |
+

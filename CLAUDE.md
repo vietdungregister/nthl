@@ -30,7 +30,7 @@ Hệ thống gồm 3 phần:
 
 | Thông số | Giá trị |
 |----------|---------|
-| Số tác phẩm | ~10.000 |
+| Số tác phẩm | ~23.921 (published) |
 | Tổng dung lượng text | ~3-4 GB |
 | Chunks cho AI search | ~133.000 |
 | Vector dimensions | 3072 (text-embedding-3-large) |
@@ -187,6 +187,8 @@ score(float, feedback tích lũy), isBlocked(tác giả block)
 
 **Tag, Collection, WorkTag, WorkCollection** — Phân loại
 **Genre** — Thể loại (value, label, emoji, order, showInSidebar)
+  - Values: `stt` | `poem` | `essay` | `short_story` | `novel` | `memoir` | `children` | `photo` | `video`
+  - ⚠️ Genre `prose` đã bị xóa (2026-04-04), tất cả works chuyển sang `stt`
 **Book** — Sách đã xuất bản (title, slug, description, coverImage, buyUrl, publisher, year)
 **AuthorProfile** — Singleton hồ sơ tác giả
 **Comment** — Bình luận độc giả
@@ -486,6 +488,15 @@ revalidateTag('author-profile') // sau khi sửa hồ sơ tác giả
 | Skill | Mô tả |
 |---|---|
 | `.agents/skills/import-works/SKILL.md` | Hướng dẫn import batch tác phẩm từ JSON |
+| `.agents/skills/deploy-to-server/SKILL.md` | Deploy Docker image + DB dump + media lên DigitalOcean VPS |
+
+### Scripts tiện ích (genre fix, maintenance)
+
+| File | Vai trò |
+|---|---|
+| `scripts/check-genres.js` | Kiểm tra genre counts vs total works |
+| `scripts/fix-genre-prose.js` | Migrate genre `prose` → `stt` |
+| `scripts/fix-genre-duplicates.js` | Xóa genre entries trùng lặp |
 
 ---
 
