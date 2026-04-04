@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -67,6 +67,17 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
 
     // AI search state (text genres only)
     const [results, setResults] = useState<SearchWork[] | null>(null)
+
+    // Stable random sentence per work — chỉ chọn lại khi results thay đổi, không re-random khi typing
+    const stablePreview = useMemo(() => {
+        if (!results) return new Map<string, string>()
+        const map = new Map<string, string>()
+        results.forEach(w => {
+            const sents = w.preview_sentences || []
+            map.set(w.id, sents.length > 0 ? sents[Math.floor(Math.random() * sents.length)] : '')
+        })
+        return map
+    }, [results])
     const [error, setError] = useState<string | null>(null)
     const [page, setPage] = useState(1)
 
@@ -334,10 +345,7 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
                     {pagedResults.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                             {pagedResults.map((work, idx) => {
-                                const sents = work.preview_sentences || []
-                                const sentence = sents.length > 0
-                                    ? sents[Math.floor(Math.random() * sents.length)]
-                                    : ''
+                                const sentence = stablePreview.get(work.id) || ''
                                 return (
                                     <Link key={work.id} href={`/tac-pham/${work.slug}`}
                                         className="poem-card ai-lib__work-card" style={{ textDecoration: 'none' }}>

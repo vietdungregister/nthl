@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 
 // ---- Skeleton Loading ----------------------------------------------
@@ -55,6 +55,17 @@ export default function AILibrarian() {
     const [query, setQuery] = useState('')
     const [loading, setLoading] = useState(false)
     const [result, setResult] = useState<AISearchResult | null>(null)
+
+    // Stable random sentence per work — chỉ chọn lại khi result thay đổi, không re-random khi typing
+    const stablePreview = useMemo(() => {
+        if (!result) return new Map<string, string>()
+        const map = new Map<string, string>()
+        result.works.forEach(w => {
+            const sents = w.preview_sentences || []
+            map.set(w.id, sents.length > 0 ? sents[Math.floor(Math.random() * sents.length)] : '')
+        })
+        return map
+    }, [result])
     const [error, setError] = useState<string | null>(null)
     const [page, setPage] = useState(1)
     const [filterYear, setFilterYear] = useState<string>('')
@@ -292,11 +303,7 @@ export default function AILibrarian() {
                     {pagedWorks.length > 0 ? (
                         <div className="ai-lib__works">
                             {pagedWorks.map((work, idx) => {
-                                // Random client-side mỗi lần render
-                                const sents = work.preview_sentences || []
-                                const sentence = sents.length > 0
-                                    ? sents[Math.floor(Math.random() * sents.length)]
-                                    : ''
+                                const sentence = stablePreview.get(work.id) || ''
                                 return (
                                 <Link
                                     key={work.id}
