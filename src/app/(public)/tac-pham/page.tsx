@@ -28,8 +28,9 @@ export default async function WorksPage({ searchParams }: Props) {
 
     const where: Record<string, unknown> = { status: 'published', deletedAt: null }
     if (genre) where.genre = genre
-    // Với photo/video grid: chỉ hiện bài có ảnh thật (tránh ô trống)
-    if (genre && VISUAL_GENRES.includes(genre)) {
+    // Với photo/painting: chỉ hiện bài có ảnh thật (tránh ô trống)
+    // Video: hiện cả bài không có coverImageUrl (dùng video placeholder)
+    if (genre && genre !== 'video' && VISUAL_GENRES.includes(genre)) {
         where.AND = [
             { coverImageUrl: { not: null } },
             { coverImageUrl: { not: '' } },
@@ -88,7 +89,7 @@ export default async function WorksPage({ searchParams }: Props) {
 
     return (
         <>
-            <WorksSmartSearch genre={genre} month={month} year={year}>
+            <WorksSmartSearch genre={genre} month={month} year={year} defaultSearch={search}>
 
             {tag && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0 12px' }}>
@@ -104,22 +105,23 @@ export default async function WorksPage({ searchParams }: Props) {
                     /* Instagram-style grid for photo/video/painting genres */
                     <div className="insta-grid">
                         {works.map(work => {
-                            const isVideo = work.genre === 'video' || (work.coverImageUrl && work.coverImageUrl.match(/\.(mp4|webm|ogg|mov)$/i))
+                            const url = work.coverImageUrl
+                            const isVideo = work.genre === 'video' || (url && url.match(/\.(mp4|webm|ogg|mov)$/i))
                             return (
                                 <Link key={work.id} href={`/tac-pham/${work.slug}`} className="insta-grid__item">
-                                    {work.coverImageUrl ? (
+                                    {url ? (
                                         isVideo ? (
                                             <>
-                                                <video src={work.coverImageUrl} muted playsInline preload="none" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                <video src={url} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                                 <div className="insta-grid__video-badge">▶</div>
                                             </>
                                         ) : (
-                                            <Image src={work.coverImageUrl} alt={work.title || 'Ảnh'} width={400} height={400} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} sizes="(max-width: 768px) 33vw, 312px" />
+                                            <Image src={url} alt={work.title || 'Ảnh'} width={400} height={400} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} sizes="(max-width: 768px) 33vw, 312px" />
                                         )
                                     ) : (
                                         <div className="insta-grid__placeholder">
                                             <span>{work.genre === 'video' ? '🎬' : work.genre === 'painting' ? '🎨' : '📷'}</span>
-                                            <span className="insta-grid__placeholder-title">{work.title || (work.genre === 'video' ? 'Video' : 'Ảnh')}</span>
+                                            <span className="insta-grid__placeholder-title">{work.title?.slice(0, 30) || 'Video'}</span>
                                         </div>
                                     )}
                                     <div className="insta-grid__overlay">
