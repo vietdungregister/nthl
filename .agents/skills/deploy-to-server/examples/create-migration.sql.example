@@ -1,0 +1,20 @@
+-- ============================================================================
+-- create-migration.sql.example
+-- Ví dụ migration SQL khi cần thêm fields mới vào schema
+-- Copy nội dung này vào: prisma/migrations/YYYYMMDDHHMMSS_your_name/migration.sql
+-- ============================================================================
+
+-- Thêm columns mới (IF NOT EXISTS để idempotent)
+ALTER TABLE "Work" ADD COLUMN IF NOT EXISTS "writtenAt" TIMESTAMP(3);
+ALTER TABLE "Work" ADD COLUMN IF NOT EXISTS "translations" TEXT;
+ALTER TABLE "Work" ADD COLUMN IF NOT EXISTS "source" TEXT;
+ALTER TABLE "Work" ADD COLUMN IF NOT EXISTS "fbTimestamp" INTEGER;
+ALTER TABLE "Work" ADD COLUMN IF NOT EXISTS "autoClassified" BOOLEAN NOT NULL DEFAULT false;
+
+-- Index (IF NOT EXISTS để idempotent)
+CREATE INDEX IF NOT EXISTS "Work_writtenAt_idx" ON "Work"("writtenAt" DESC);
+
+-- ============================================================================
+-- Sau khi tạo file, chạy trên local:
+--   npx prisma migrate resolve --applied YYYYMMDDHHMMSS_your_name
+-- ============================================================================
