@@ -3,6 +3,28 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 
+// ---- Skeleton Loading ----------------------------------------------
+function SearchSkeleton() {
+    return (
+        <div className="search-skeleton">
+            <div className="search-skeleton__label">
+                <span className="search-skeleton__dot">
+                    <span /><span /><span />
+                </span>
+                Đang tìm tác phẩm liên quan...
+            </div>
+            {[0, 1, 2, 3].map(i => (
+                <div key={i} className="search-skeleton__card">
+                    <div className="search-skeleton__line search-skeleton__line--badge" />
+                    <div className="search-skeleton__line search-skeleton__line--title" />
+                    <div className="search-skeleton__line" />
+                    <div className="search-skeleton__preview" />
+                </div>
+            ))}
+        </div>
+    )
+}
+
 const STORAGE_KEY = 'ai-lib-state'
 const TTL_MS = 15 * 60 * 1000
 
@@ -207,6 +229,9 @@ export default function AILibrarian() {
                     {error}
                 </div>
             )}
+
+            {/* Skeleton loading */}
+            {loading && !result && <SearchSkeleton />}
 
             {/* Result */}
             {result && (

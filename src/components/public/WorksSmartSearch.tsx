@@ -4,6 +4,28 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
+// ---- Skeleton Loading ----------------------------------------------
+function SearchSkeleton() {
+    return (
+        <div className="search-skeleton">
+            <div className="search-skeleton__label">
+                <span className="search-skeleton__dot">
+                    <span /><span /><span />
+                </span>
+                Đang tìm tác phẩm liên quan...
+            </div>
+            {[0, 1, 2, 3].map(i => (
+                <div key={i} className="search-skeleton__card">
+                    <div className="search-skeleton__line search-skeleton__line--badge" />
+                    <div className="search-skeleton__line search-skeleton__line--title" />
+                    <div className="search-skeleton__line" />
+                    <div className="search-skeleton__preview" />
+                </div>
+            ))}
+        </div>
+    )
+}
+
 // ---- Types ---------------------------------------------------------
 interface SearchWork {
     id: string
@@ -290,6 +312,9 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
                     </div>
                 </div>
             )}
+
+            {/* ── Skeleton Loading ─────────────────────────────────────── */}
+            {loading && !results && <SearchSkeleton />}
 
             {/* ── Error ───────────────────────────────────────────────── */}
             {error && (

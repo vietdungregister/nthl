@@ -13,17 +13,21 @@ async function vectorSearch(queryText: string, limit = 200) {
     const queryEmb = embResponse.data[0].embedding
     const embStr = '[' + queryEmb.join(',') + ']'
 
+    // Tăng ef_search cho recall tốt hơn (mặc định 40)
+    await prisma.$executeRawUnsafe('SET hnsw.ef_search = 100')
+
+    // Cast sang halfvec(3072) để dùng HNSW index (vector type giới hạn 2000 dims)
     return prisma.$queryRawUnsafe<Array<{
         workId: string
         content: string
         similarity: number
     }>>(
         `SELECT c."workId", c.content,
-                1 - (c.embedding <=> $1::vector) as similarity
+                1 - (c.embedding::halfvec(3072) <=> $1::halfvec(3072)) as similarity
          FROM "ChatChunk" c
          WHERE c."isBlocked" = false
            AND c.embedding IS NOT NULL
-         ORDER BY c.embedding <=> $1::vector
+         ORDER BY c.embedding::halfvec(3072) <=> $1::halfvec(3072)
          LIMIT $2`,
         embStr,
         limit
