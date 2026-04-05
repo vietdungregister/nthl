@@ -5,6 +5,11 @@
 # ============================================================
 set -e
 
+# Cấu hình — thay đổi theo nhu cầu
+IMAGE="vietdungregister/nthl"
+TAG="${1:-latest}"  # Truyền version qua argument: bash server-deploy.sh v6
+SERVER_IP="188.166.177.93"
+
 echo "=============================="
 echo "  NTHL Server Deploy Script"
 echo "=============================="
@@ -35,20 +40,20 @@ echo "⏳ [3/7] Git pull + cập nhật docker-compose..."
 cd ~/nthl
 git pull origin master
 
-# Đổi image name trong docker-compose.yml
-sed -i 's|image: vibe-app:v3|image: vietdungregister/nthl:v4|g' docker-compose.yml
+# Đổi image name trong docker-compose.yml (regex linh hoạt — match bất kỳ version nào)
+sed -i "s|image: .*nthl.*|image: ${IMAGE}:${TAG}|g" docker-compose.yml
 # Verify
 grep "image:" docker-compose.yml
-echo "✅ docker-compose.yml updated"
+echo "✅ docker-compose.yml updated → ${IMAGE}:${TAG}"
 
 # Update NEXTAUTH_URL
-sed -i 's|NEXTAUTH_URL=.*|NEXTAUTH_URL="http://188.166.177.93:3001"|g' .env
+sed -i "s|NEXTAUTH_URL=.*|NEXTAUTH_URL=\"http://${SERVER_IP}:3001\"|g" .env
 echo "✅ .env NEXTAUTH_URL updated"
 
 # ── [4] Pull Docker image ─────────────────────────────────
 echo ""
-echo "⏳ [4/7] Pull Docker image vietdungregister/nthl:v4..."
-docker pull vietdungregister/nthl:v4
+echo "⏳ [4/7] Pull Docker image ${IMAGE}:${TAG}..."
+docker pull "${IMAGE}:${TAG}"
 echo "✅ Image pulled"
 
 # ── [5] Restart containers ───────────────────────────────
@@ -134,6 +139,6 @@ free -h
 echo ""
 echo "=============================="
 echo "  🚀 DEPLOY COMPLETE!"
-echo "  URL: http://188.166.177.93:3001/"
-echo "  CMS: http://188.166.177.93:3001/cms/login"
+echo "  URL: http://${SERVER_IP}:3001/"
+echo "  CMS: http://${SERVER_IP}:3001/cms/login"
 echo "=============================="

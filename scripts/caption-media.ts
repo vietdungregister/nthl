@@ -22,7 +22,7 @@ import 'dotenv/config'
 import * as dotenvLocal from 'dotenv'
 import { PrismaClient } from '@prisma/client'
 import OpenAI from 'openai'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
 
@@ -45,7 +45,7 @@ const LOG_FILE = join(process.cwd(), 'output', 'caption-log.json')
 // ── Clients ──────────────────────────────────────────────────────────────────
 const prisma = new PrismaClient()
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
+const geminiAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' })
 
 // ── Prompt ───────────────────────────────────────────────────────────────────
 const PHOTO_PROMPT = `Mô tả bức ảnh này bằng tiếng Việt trong 2-4 câu ngắn gọn, súc tích.
@@ -106,23 +106,20 @@ async function captionVideo(filePath: string): Promise<string> {
     }
     const mimeType = mimeMap[ext] || 'video/mp4'
 
-    // Gemini File API: upload trước, rồi generate
-    const model = gemini.getGenerativeModel({ model: 'gemini-2.0-flash' })
-
     const fileBuffer = readFileSync(filePath)
     const base64 = fileBuffer.toString('base64')
 
-    const result = await model.generateContent([
-        { text: VIDEO_PROMPT },
-        {
-            inlineData: {
-                mimeType,
-                data: base64,
-            }
-        }
-    ])
+    const result = await geminiAI.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+            { role: 'user', parts: [
+                { text: VIDEO_PROMPT },
+                { inlineData: { mimeType, data: base64 } }
+            ]}
+        ],
+    })
 
-    return result.response.text().trim()
+    return (result.text || '').trim()
 }
 
 // ── Tạo embedding và ChatChunk ───────────────────────────────────────────────

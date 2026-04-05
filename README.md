@@ -1,36 +1,119 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hệ Sinh Thái Văn Học Số — Nguyễn Thế Hoàng Linh
 
-## Getting Started
+> Thư viện chính chủ cho nhà thơ Nguyễn Thế Hoàng Linh — ~23,921 tác phẩm, AI-powered semantic search.
 
-First, run the development server:
+**Live:** [http://188.166.177.93:3001](http://188.166.177.93:3001)
+
+---
+
+## Tổng Quan
+
+Web app gồm 3 thành phần:
+
+| Thành phần | Mô tả |
+|---|---|
+| **Public Site** | Duyệt, đọc, tìm kiếm tác phẩm — mobile-first, typography đẹp |
+| **CMS Admin** | Quản lý kho tác phẩm — CRUD, phân loại, xuất bản |
+| **AI Search Engine** | Hybrid vector (pgvector) + full-text search — tìm kiếm theo nghĩa, cảm xúc |
+
+## Tech Stack
+
+| Layer | Công nghệ |
+|---|---|
+| Framework | Next.js 16 (App Router, TypeScript) |
+| Database | PostgreSQL + pgvector (HNSW index) |
+| ORM | Prisma |
+| Auth | NextAuth.js v5 (JWT, credentials) |
+| Embedding | OpenAI text-embedding-3-large (3072d) |
+| Styling | Vanilla CSS |
+| Deployment | Docker (multi-stage Alpine) + DigitalOcean VPS |
+| CI/CD | GitHub Actions (auto build → push → deploy) |
+
+## Development Setup
+
+### Prerequisites
+- Node.js 20+
+- Docker Desktop (for PostgreSQL + pgvector)
+- OpenAI API key (for AI search)
+
+### Quick Start
 
 ```bash
+# 1. Clone & install
+git clone https://github.com/vietdungregister/nthl.git
+cd nthl
+npm install
+
+# 2. Khởi động PostgreSQL
+docker compose up db -d
+
+# 3. Cấu hình environment
+cp .env.example .env.local
+# Sửa: DATABASE_URL, NEXTAUTH_SECRET, OPENAI_API_KEY, ADMIN_EMAIL, ADMIN_PASSWORD
+
+# 4. Database setup
+npx prisma migrate deploy
+npx tsx prisma/seed.ts
+
+# 5. Chạy dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# → http://localhost:3000
+# → CMS: http://localhost:3000/cms/login
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Health Check
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+node scripts/health-check.js
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project Structure
 
-## Learn More
+```
+├── src/
+│   ├── app/
+│   │   ├── (public)/          # Public site (sidebar layout)
+│   │   ├── cms/               # CMS admin pages
+│   │   ├── tac-pham/[slug]/   # Work detail
+│   │   └── api/               # API routes
+│   ├── components/            # React components
+│   └── lib/                   # Shared utilities (cache, db, auth, search)
+├── prisma/                    # Database schema & migrations
+├── scripts/                   # Utility scripts (import, deploy, maintenance)
+├── .agents/skills/            # AI agent skills (deploy, import-works)
+├── Dockerfile                 # Multi-stage Alpine build
+└── docker-compose.yml         # PostgreSQL + App
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Key Files
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| File | Vai trò |
+|---|---|
+| `CLAUDE.md` | Product Requirements Document — source of truth |
+| `src/lib/cache.ts` | Server-side cache (genres, tags, books, collections) |
+| `src/lib/chunkAndEmbed.ts` | Auto chunk + embed khi tạo/sửa work qua CMS |
+| `src/app/api/ai-search/route.ts` | Hybrid vector + text search API |
+| `src/components/public/WorksSmartSearch.tsx` | Smart search integrated UI |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+### CI/CD (Recommended)
+Push to `master` → GitHub Actions auto build → push Docker Hub → deploy server.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Manual
+```bash
+# Xem skill chi tiết:
+cat .agents/skills/deploy-to-server/SKILL.md
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Data Import
+
+Import batch tác phẩm từ Facebook JSON:
+```bash
+# Xem skill chi tiết:
+cat .agents/skills/import-works/SKILL.md
+```
+
+## License
+
+Private — All rights reserved.

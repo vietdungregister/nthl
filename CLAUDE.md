@@ -479,7 +479,7 @@ revalidateTag('author-profile') // sau khi sửa hồ sơ tác giả
 
 | File | Vai trò |
 |---|---|
-| `build_data.py` | Parse Facebook JSON → works.json + chunks.json |
+| `scripts/build-data.py` | Parse Facebook JSON → works.json + chunks.json |
 | `scripts/generate_embeddings.py` | Tạo vector embeddings cho chunks (~$0.01/1000 chunks) |
 | `scripts/seed_db.py` | Import works + chunks vào DB (có checkpoint, skip duplicate) |
 
@@ -490,13 +490,15 @@ revalidateTag('author-profile') // sau khi sửa hồ sơ tác giả
 | `.agents/skills/import-works/SKILL.md` | Hướng dẫn import batch tác phẩm từ JSON |
 | `.agents/skills/deploy-to-server/SKILL.md` | Deploy Docker image + DB dump + media lên DigitalOcean VPS |
 
-### Scripts tiện ích (genre fix, maintenance)
+### Scripts tiện ích (maintenance)
 
 | File | Vai trò |
 |---|---|
+| `scripts/health-check.js` | Kiểm tra env/DB/OpenAI trước khi deploy |
 | `scripts/check-genres.js` | Kiểm tra genre counts vs total works |
-| `scripts/fix-genre-prose.js` | Migrate genre `prose` → `stt` |
-| `scripts/fix-genre-duplicates.js` | Xóa genre entries trùng lặp |
+| `scripts/update-admin-password.ts` | Reset mật khẩu admin |
+| `scripts/server-deploy.sh` | Script deploy lên server (configurable version) |
+| `scripts/deploy-init.sh` | Khởi tạo DB lần đầu trên server |
 
 ---
 

@@ -28,11 +28,13 @@ export function cn(...classes: (string | undefined | null | false)[]): string {
 }
 
 export const GENRES = [
+    { value: 'stt', label: 'Stt', emoji: '📄' },
     { value: 'poem', label: 'Thơ', emoji: '📝' },
-    { value: 'novel', label: 'Tiểu thuyết', emoji: '📖' },
-    { value: 'essay', label: 'Tiểu luận', emoji: '📄' },
-    { value: 'prose', label: 'Tùy bút', emoji: '✍️' },
-    { value: 'painting', label: 'Tranh', emoji: '🎨' },
+    { value: 'short_story', label: 'Truyện ngắn', emoji: '📖' },
+    { value: 'essay', label: 'Tản văn', emoji: '✍️' },
+    { value: 'novel', label: 'Tiểu thuyết', emoji: '📚' },
+    { value: 'memoir', label: 'Bút ký', emoji: '🖊️' },
+    { value: 'children', label: 'Thơ thiếu nhi', emoji: '🧒' },
     { value: 'photo', label: 'Ảnh', emoji: '📷' },
     { value: 'video', label: 'Video', emoji: '🎬' },
 ] as const

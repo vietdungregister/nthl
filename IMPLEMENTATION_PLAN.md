@@ -2,7 +2,7 @@
 # Kế Hoạch Triển Khai: Web App Thư Viện Tác Phẩm Nguyễn Thế Hoàng Linh
 
 > Dựa trên PRD trong `CLAUDE.md`  
-> Tech stack: Next.js 14+ (App Router) + TypeScript + Prisma + PostgreSQL + Tailwind CSS
+> Tech stack: Next.js 16 (App Router) + TypeScript + Prisma + PostgreSQL + pgvector + Vanilla CSS
 
 ---
 
@@ -21,7 +21,7 @@
   - `bcryptjs @types/bcryptjs`
   - `zod`
   - `react-hook-form @hookform/resolvers`
-- [ ] Cài shadcn/ui: `npx shadcn@latest init`, thêm các components cần thiết
+- [ ] ~~Cài shadcn/ui~~ → **KHÔNG DÙNG** — project dùng Vanilla CSS
 
 ### 0.2 Cấu hình môi trường
 - [ ] Tạo file `.env.local` và `.env.example` với các biến:
@@ -502,8 +502,8 @@
 | Search | PG full-text search | Đơn giản, đủ dùng; thêm Meilisearch sau nếu cần |
 | DB | PostgreSQL (Neon) | Free tier, serverless-friendly với Vercel |
 | Auth | NextAuth v5 (beta) | Tích hợp tốt nhất với Next.js App Router |
-| CSS | Tailwind CSS + shadcn/ui | Nhanh, nhất quán, customizable |
-| Deploy | Vercel | Zero-config với Next.js, free tier đủ dùng |
+| CSS | Vanilla CSS | Kiểm soát typography chi tiết cho thơ (Playfair/Lora), mobile-first |
+| Deploy | Docker + DigitalOcean VPS | Cần pgvector + persistent uploads, rẻ hơn Vercel |
 
 ---
 

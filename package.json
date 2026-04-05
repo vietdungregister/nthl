@@ -30,14 +30,11 @@
   },
   "devDependencies": {
     "@google/genai": "^1.48.0",
-    "@google/generative-ai": "^0.24.1",
-    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
-    "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5"
   }

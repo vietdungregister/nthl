@@ -38,7 +38,7 @@ services:
   # Service 2: Next.js App
   # ──────────────────────────────────────────────────────────
   app:
-    image: vibe-app:v3
+    image: vietdungregister/nthl:latest
     container_name: vibe-app
     restart: unless-stopped
     depends_on:

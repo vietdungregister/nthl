@@ -1,8 +1,8 @@
 generator client {
   provider      = "prisma-client-js"
-  // native: dùng khi chạy trên Windows (dev)
-  // debian-openssl-1.1.x: dùng khi chạy trong Docker container (node:20-slim)
-  binaryTargets = ["native", "debian-openssl-1.1.x", "darwin-arm64"]
+  // native: dùng khi dev trên Mac/Windows
+  // linux-musl-openssl-3.0.x: dùng khi chạy trong Docker container (node:20-alpine)
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 

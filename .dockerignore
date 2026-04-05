@@ -67,6 +67,8 @@ Thumbs.db
 
 # --- CI/CD & Documentation (không cần trong runtime image) ---
 .claude
+.agents
+.github
 README.md
 IMPLEMENTATION_PLAN.md
 CLAUDE.md
@@ -74,11 +76,17 @@ CLAUDE.md
 
 
 # --- Test & Dev scripts (không cần trong production) ---
-health-check.js
-check-db.ts
-update-admin-password.js
-update-admin-password.ts
-update-db.ts
+scripts/health-check.js
+scripts/check-db.ts
+scripts/update-admin-password.ts
+scripts/update-db.ts
+scripts/build-data.py
+scripts/export-to-docx.py
+scripts/deploy-init.sh
+scripts/server-deploy.sh
+scripts/check-genres.js
+scripts/fix-genre-prose.js
+scripts/fix-genre-duplicates.js
 
 
 # --- TypeScript build info cache ---
@@ -87,6 +95,5 @@ tsconfig.tsbuildinfo
 
 # --- Prisma seed files (chỉ dùng khi setup lần đầu, không cần trong image) ---
 prisma/seed.ts
-prisma/seed.js
-prisma/seed.mjs
 prisma/seed-genres.js
+

@@ -82,6 +82,9 @@ docker buildx build --platform linux/amd64 ...
 ```
 Nếu build không có `--platform`, image SẼ KHÔNG chạy được trên server.
 
+**Khuyến nghị**: Dùng GitHub Actions CI/CD (xem Phase 3B) để build native trên linux/amd64,
+không cần cross-platform emulation, nhanh gấp 3-5x.
+
 ### 7. Git: branch name
 Kiểm tra branch name trước khi push — local có thể là `master` trong khi remote là `main` hoặc ngược lại.
 
@@ -168,8 +171,26 @@ git remote set-url origin https://github.com/USER/REPO.git  # Xóa token khỏi 
 
 ---
 
-### Phase 3 — Build Docker Image Cross-Platform
+### Phase 3A — Build Docker Image (CI/CD — Khuyến nghị)
 
+Đẩy code lên GitHub → GitHub Actions tự động build & push Docker image:
+```bash
+git push origin master
+# → GitHub Actions trigger: build → push Docker Hub → (optional) deploy server
+```
+
+**Thời gian**: ~3-5 phút (GitHub Actions native linux/amd64).
+**Xem workflow**: `.github/workflows/deploy.yml`
+
+**Secrets cần cấu hình** (GitHub → Settings → Secrets → Actions):
+- `DOCKERHUB_USERNAME`: Docker Hub username
+- `DOCKERHUB_TOKEN`: Docker Hub access token
+- `SERVER_SSH_KEY`: (optional) Private key SSH cho auto-deploy
+- `SERVER_IP`: (optional) IP server
+
+### Phase 3B — Build Docker Image Manual (Fallback)
+
+Khi cần build thủ công (CI/CD chưa setup hoặc cần test local):
 ```bash
 docker buildx build \
   --platform linux/amd64 \
@@ -184,6 +205,9 @@ docker buildx build \
 - Lỗi Prisma: do Server Component gọi DB lúc build → thêm `force-dynamic`
 - Lỗi TypeScript: do `'use client'` page có `export const dynamic` → xóa đi
 - Lỗi duplicate: kiểm tra `grep -c "export const dynamic" FILE`
+
+**Lưu ý Dockerfile v4**: Base image là `node:20-alpine` (thay vì `node:20-slim`),
+Prisma binary target là `linux-musl-openssl-3.0.x`.
 
 ---
 

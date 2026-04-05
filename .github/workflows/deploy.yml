@@ -1,0 +1,154 @@
+# ============================================================
+# GitHub Actions — Auto Build & Deploy
+# 
+# Trigger: push code thay đổi lên master → tự động build + deploy
+# Manual: workflow_dispatch (chạy thủ công từ GitHub UI)
+#
+# Flow hoàn chỉnh:
+#   1. Checkout code
+#   2. Setup Docker Buildx 
+#   3. Login Docker Hub
+#   4. Build image (native linux/amd64) với GitHub cache → push Docker Hub
+#   5. SSH vào server → pull image mới → restart app → health check
+#
+# Secrets cần cấu hình trên GitHub (Settings → Secrets → Actions):
+#   - DOCKERHUB_USERNAME: Docker Hub username (vietdungregister)
+#   - DOCKERHUB_TOKEN: Docker Hub access token  
+#   - SERVER_SSH_KEY: Private key SSH tới server
+#   - SERVER_IP: IP của server (188.166.177.93)
+# ============================================================
+
+name: Build & Deploy
+
+on:
+  push:
+    branches: [master]
+    # Chỉ trigger khi thay đổi code thực — KHÔNG trigger khi sửa docs/README
+    paths:
+      - 'src/**'
+      - 'prisma/**'
+      - 'public/**'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'next.config.ts'
+      - 'postcss.config.mjs'
+      - 'tsconfig.json'
+  # Cho phép chạy thủ công từ GitHub Actions UI
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: vietdungregister/nthl
+
+jobs:
+  # ──────────────────────────────────────────────────────────
+  # Job 1: Build & Push Docker Image
+  # Chạy trên ubuntu-latest (native linux/amd64)
+  # → KHÔNG cần cross-platform emulation như Mac ARM
+  # → Build nhanh gấp 3-5x so với buildx trên Mac M-series
+  # ──────────────────────────────────────────────────────────
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout code ────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Setup BuildKit (cho cache mount, multi-stage) ────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── Login Docker Hub ─────────────────────────────────
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # ── Generate tags & labels ───────────────────────────
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=v-
+
+      # ── Build & Push ─────────────────────────────────────
+      # GitHub Actions cache: Docker layer cache lưu trên GitHub
+      # → Rebuild chỉ mất 1-2 phút nếu chỉ thay đổi code nhỏ
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ──────────────────────────────────────────────────────────
+  # Job 2: Auto Deploy lên server
+  # Chạy SAU khi build thành công
+  # SSH vào server → pull image → restart → health check
+  # ──────────────────────────────────────────────────────────
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: root
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          envs: IMAGE_NAME
+          script: |
+            set -e
+            cd /app
+
+            echo "══════════════════════════════════════════"
+            echo "🚀 Deploying $IMAGE_NAME:latest"
+            echo "══════════════════════════════════════════"
+
+            echo ""
+            echo "=== [1/5] Pulling latest image ==="
+            docker pull $IMAGE_NAME:latest
+
+            echo ""
+            echo "=== [2/5] Updating docker-compose.yml ==="
+            sed -i "s|image: .*nthl.*|image: $IMAGE_NAME:latest|g" docker-compose.yml
+
+            echo ""
+            echo "=== [3/5] Restarting app container ==="
+            docker compose stop app
+            docker compose up -d app
+
+            echo ""
+            echo "=== [4/5] Waiting for app to start (20s) ==="
+            sleep 20
+
+            echo ""
+            echo "=== [5/5] Health check ==="
+            HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:3001/ || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ App is running! (HTTP $HTTP_CODE)"
+            else
+              echo "⚠️  App returned HTTP $HTTP_CODE — checking logs..."
+              docker logs --tail 20 vibe-app
+              exit 1
+            fi
+
+            echo ""
+            echo "=== Cleanup old images ==="
+            docker image prune -f
+
+            echo ""
+            echo "══════════════════════════════════════════"
+            echo "✅ Deploy completed successfully!"
+            echo "══════════════════════════════════════════"
+            docker ps --filter name=vibe --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
