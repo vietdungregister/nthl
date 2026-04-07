@@ -16,6 +16,28 @@ function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
+/** Chuẩn hoá title: thay newline + tab bằng space, collapse multiple spaces */
+function cleanTitle(t: string | null): string {
+  if (!t) return ''
+  return t.replace(/[\n\r\t]+/g, ' ').replace(/  +/g, ' ').trim()
+}
+
+/** Clean excerpt: bỏ tên tác giả ở đầu (nhiều variants từ FB/forum import) */
+const AUTHOR_PREFIXES = [
+  'Nguyễn Thế Hoàng Linh', 'NGUYỄN THẾ HOÀNG LINH',
+  'nguyenthehoanglinh', 'away',
+]
+function cleanExcerpt(text: string | null): string {
+  if (!text) return ''
+  let t = text.trim()
+  for (const prefix of AUTHOR_PREFIXES) {
+    if (t.toLowerCase().startsWith(prefix.toLowerCase())) {
+      t = t.slice(prefix.length).replace(/^[\s\n.,;:–—-]+/, '').trim()
+    }
+  }
+  return t
+}
+
 const WORK_LIST_SELECT = {
   id: true, title: true, slug: true, genre: true,
   excerpt: true, coverImageUrl: true,
@@ -55,17 +77,37 @@ export default async function HomePage({ searchParams }: Props) {
 
   const buildUrl = (p: number) => p === 1 ? '/' : `/?page=${p}`
 
+  // ── Daily work cho popup ─────────────────────────────────────────────
+  // Ưu tiên: (1) bài được đánh dấu featured hôm nay, (2) random từ toàn kho
+  // Dùng $queryRaw + ORDER BY RANDOM() để lấy đúng random, tránh bias 20 bài đầu
+  type PopupWork = { id: string; title: string; slug: string; genre: string; content: string }
+
   let dailyWork = null
   if (featuredToday.length > 0) {
     const w = pickRandom(featuredToday)
-    dailyWork = { ...w, content: w.excerpt ?? '', genreLabel: getLabel(w.genre) }
+    const rows = await prisma.$queryRaw<PopupWork[]>`
+      SELECT id, title, slug, genre, LEFT(content, 3000) AS content
+      FROM "Work"
+      WHERE id = ${w.id} AND status = 'published' AND "deletedAt" IS NULL
+      LIMIT 1
+    `
+    if (rows[0]) dailyWork = { ...rows[0], genreLabel: getLabel(rows[0].genre) }
   } else {
-    const textWorks = works.filter(w => TEXT_GENRES.includes(w.genre))
-    if (textWorks.length > 0) {
-      const w = pickRandom(textWorks)
-      dailyWork = { id: w.id, title: w.title, slug: w.slug, genre: w.genre, content: w.excerpt ?? '', genreLabel: getLabel(w.genre) }
-    }
+    // Random từ toàn kho — chỉ lấy bài có title + content, thể loại văn bản
+    const rows = await prisma.$queryRaw<PopupWork[]>`
+      SELECT id, title, slug, genre, LEFT(content, 3000) AS content
+      FROM "Work"
+      WHERE status = 'published'
+        AND "deletedAt" IS NULL
+        AND title IS NOT NULL AND title != ''
+        AND content IS NOT NULL AND LENGTH(content) > 50
+        AND genre IN ('poem', 'essay', 'short_story', 'memoir')
+      ORDER BY RANDOM()
+      LIMIT 1
+    `.catch(() => [] as PopupWork[])
+    if (rows[0]) dailyWork = { ...rows[0], genreLabel: getLabel(rows[0].genre) }
   }
+
 
   return (
     <>
@@ -92,7 +134,7 @@ export default async function HomePage({ searchParams }: Props) {
                   </span>
                 )})()}
               </div>
-              {work.title && <Link href={`/tac-pham/${work.slug}`} className="feed-card__title">{work.title}</Link>}
+              {work.title && <Link href={`/tac-pham/${work.slug}`} className="feed-card__title">{cleanTitle(work.title)}</Link>}
 
               {VISUAL_GENRES.includes(work.genre) && work.coverImageUrl && (
                 <div style={{ marginBottom: 12, borderRadius: 10, overflow: 'hidden' }}>
@@ -107,7 +149,7 @@ export default async function HomePage({ searchParams }: Props) {
               )}
 
               {!VISUAL_GENRES.includes(work.genre) && work.excerpt && (
-                <ExpandableContent content={work.excerpt} limit={500} className={work.genre === 'poem' ? 'feed-card__poem' : 'feed-card__prose'} />
+                <ExpandableContent content={cleanExcerpt(work.excerpt)} limit={500} className={work.genre === 'poem' ? 'feed-card__poem' : 'feed-card__prose'} />
               )}
               {VISUAL_GENRES.includes(work.genre) && work.excerpt && (
                 <ExpandableContent content={work.excerpt} limit={200} className="feed-card__prose" />

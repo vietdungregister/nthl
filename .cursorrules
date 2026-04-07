@@ -1,0 +1,12 @@
+# Cursor Rules — NTHL Literary Archive
+
+> **⚠️ BẮT BUỘC**: Đọc `CLAUDE.md` trước khi làm bất kỳ task nào.
+> Đó là Functional Requirements Document (FRD) chứa toàn bộ kiến trúc, data model,
+> quy tắc code, và danh sách file quan trọng của dự án.
+
+## Key Rules
+- Vanilla CSS only (KHÔNG Tailwind)
+- Always `select` specific fields in Prisma queries (KHÔNG load content in lists)
+- Search MUST go through /api/ai-search (vector + text hybrid)
+- Genres: stt | poem | essay | short_story | novel | memoir | children | photo | video
+- `force-dynamic` cho Server Components dùng Prisma, KHÔNG cho Client Components

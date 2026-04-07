@@ -1,6 +1,9 @@
 # Hệ Sinh Thái Văn Học Số — Nguyễn Thế Hoàng Linh
 
-> Thư viện chính chủ cho nhà thơ Nguyễn Thế Hoàng Linh — ~23,921 tác phẩm, AI-powered semantic search.
+> Thư viện chính chủ cho nhà thơ Nguyễn Thế Hoàng Linh — ~25,215 tác phẩm, AI-powered semantic search.
+
+> [!IMPORTANT]
+> **AI Agents**: Trước khi làm bất kỳ task nào, **BẮT BUỘC** đọc [`CLAUDE.md`](CLAUDE.md) — đây là **Functional Requirements Document (FRD)** chứa toàn bộ kiến trúc, data model, quy tắc code, và danh sách file quan trọng của dự án. Bỏ qua bước này sẽ dẫn đến lỗi.
 
 **Live:** [http://188.166.177.93:3001](http://188.166.177.93:3001)
 
@@ -80,7 +83,7 @@ node scripts/health-check.js
 │   └── lib/                   # Shared utilities (cache, db, auth, search)
 ├── prisma/                    # Database schema & migrations
 ├── scripts/                   # Utility scripts (import, deploy, maintenance)
-├── .agents/skills/            # AI agent skills (deploy, import-works)
+├── .agents/skills/            # AI agent skills (deploy, import-works, crawl-forums)
 ├── Dockerfile                 # Multi-stage Alpine build
 └── docker-compose.yml         # PostgreSQL + App
 ```
@@ -110,8 +113,12 @@ cat .agents/skills/deploy-to-server/SKILL.md
 
 Import batch tác phẩm từ Facebook JSON:
 ```bash
-# Xem skill chi tiết:
 cat .agents/skills/import-works/SKILL.md
+```
+
+Crawl & import từ diễn đàn (tienve, gio-o, ttvnol):
+```bash
+cat .agents/skills/crawl-forums/SKILL.md
 ```
 
 ## License

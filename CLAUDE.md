@@ -1,7 +1,7 @@
 # CLAUDE.md — Product Requirements Document
 # Hệ Sinh Thái Văn Học Số: Nguyễn Thế Hoàng Linh
 
-> **Phiên bản:** 2.1 (cập nhật 2026-04-04)
+> **Phiên bản:** 2.2 (cập nhật 2026-04-08)
 > **Loại sản phẩm:** CMS + Public Site + AI-Powered Search (Literary Archive & Personal Branding)
 > **Tech:** Next.js 16 · PostgreSQL · Prisma · pgvector · OpenAI · Docker
 
@@ -30,11 +30,12 @@ Hệ thống gồm 3 phần:
 
 | Thông số | Giá trị |
 |----------|---------|
-| Số tác phẩm | ~23.921 (published) |
-| Tổng dung lượng text | ~3-4 GB |
-| Chunks cho AI search | ~133.000 |
+| Số tác phẩm | ~25.215 (23.922 Facebook + 1.293 forums) |
+| Tổng dung lượng text | ~4-5 GB |
+| Chunks cho AI search | ~184.781 |
 | Vector dimensions | 3072 (text-embedding-3-large) |
 | DB | PostgreSQL + pgvector tại localhost:5433 |
+| Nguồn dữ liệu | Facebook export, tienve.org, gio-o.com, ttvnol.com |
 | Next.js version | 16.1.6 |
 
 ---
@@ -164,7 +165,7 @@ src/components/
 
 ### 4.1 Core Models
 
-**Work** — Tác phẩm (core entity, ~10K rows)
+**Work** — Tác phẩm (core entity, ~25K rows)
 ```
 id, title, slug(unique), genre, content(text lớn), excerpt,
 coverImageUrl, status(draft|published|scheduled), publishedAt,
@@ -177,7 +178,7 @@ autoClassified, createdAt, updatedAt, deletedAt(soft delete)
 → tags[], collections[], comments[], chunks[]
 ```
 
-**ChatChunk** — Chunks cho AI search (~133K rows)
+**ChatChunk** — Chunks cho AI search (~185K rows)
 ```
 id, workId→Work, content(1-2 dòng text),
 embedding(vector 3072 — raw SQL, Prisma chưa hỗ trợ pgvector),
@@ -262,6 +263,7 @@ User query → API /api/ai-search (POST)
 |---|---|---|
 | **CMS web** (thêm/sửa qua UI) | `POST/PUT /api/works` → `after()` → `chunkAndEmbed()` | ✅ Tự động |
 | **File JSON** (Facebook export) | `build_data.py → generate_embeddings.py → seed_db.py` | ❌ Thủ công (xem skill `import-works`) |
+| **Forum crawl** (tienve, gio-o, ttvnol) | crawl → parse → classify → dedup → embed → seed | ❌ Thủ công (xem skill `crawl-forums`) |
 
 ### 6.2 Service `chunkAndEmbed`
 
@@ -489,6 +491,7 @@ revalidateTag('author-profile') // sau khi sửa hồ sơ tác giả
 |---|---|
 | `.agents/skills/import-works/SKILL.md` | Hướng dẫn import batch tác phẩm từ JSON |
 | `.agents/skills/deploy-to-server/SKILL.md` | Deploy Docker image + DB dump + media lên DigitalOcean VPS |
+| `.agents/skills/crawl-forums/SKILL.md` | Crawl diễn đàn → AI classify → dedup → embed → import DB → deploy |
 
 ### Scripts tiện ích (maintenance)
 

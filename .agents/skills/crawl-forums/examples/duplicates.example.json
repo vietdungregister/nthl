@@ -1,0 +1,22 @@
+[
+  {
+    "newWork": {
+      "title": "Tại sao?",
+      "slug": "tai-sao",
+      "source": "ttvnol",
+      "sourceUrl": "http://ttvnol.com/threads/co-mot-ngoi-nha-moi.221106/page-5#post-4614120",
+      "content_preview": "Tại sao?\n\ntại sao ta phải sống\ntại sao ta phải yêu\n..."
+    },
+    "matchMethod": "slug_exact"
+  },
+  {
+    "newWork": {
+      "title": "LỬA",
+      "slug": "lua-2",
+      "source": "ttvnol",
+      "sourceUrl": "http://ttvnol.com/threads/mong-moi-nguoi-gop-y-cho.51077/page-30#post-1234567",
+      "content_preview": "LỬA\n\nngọn lửa nhỏ\ncháy trong đêm\n..."
+    },
+    "matchMethod": "title_norm"
+  }
+]

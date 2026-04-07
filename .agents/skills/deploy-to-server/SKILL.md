@@ -157,16 +157,18 @@ git config user.email "YOUR_EMAIL"
 
 # Stage chỉ source code (KHÔNG media/output/dump)
 git add .gitignore .dockerignore prisma/ src/ Dockerfile docker-compose.yml \
-  next.config.ts package.json package-lock.json scripts/ .agents/
+  next.config.ts package.json package-lock.json scripts/ .agents/ .github/
 
 git commit -m "feat: description of changes
 
 Co-authored-by: AI Agent <agent@example.com>"
 
-# Push (nếu cần token)
-git remote set-url origin https://TOKEN@github.com/USER/REPO.git
-git push origin BRANCH
-git remote set-url origin https://github.com/USER/REPO.git  # Xóa token khỏi URL
+# Push dùng token từ .env.local (GITHUB_TOKEN và GITHUB_REPO đã lưu sẵn)
+# AI agent tự đọc token — không cần hỏi user
+export $(grep -E "^GITHUB_TOKEN|^GITHUB_REPO" .env.local | xargs)
+git remote set-url origin https://${GITHUB_TOKEN}@github.com/${GITHUB_REPO}.git
+git push origin master
+git remote set-url origin https://github.com/${GITHUB_REPO}.git  # Xóa token khỏi URL
 ```
 
 ---

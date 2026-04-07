@@ -846,8 +846,21 @@ img {
   font-style: italic;
   line-height: 2;
   color: var(--text-secondary);
-  white-space: pre-wrap;
   margin: 0;
+  max-height: 220px;
+  overflow: hidden;
+  position: relative;
+}
+
+.daily-modal__poem::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(transparent, var(--card-bg));
+  pointer-events: none;
 }
 
 /* Prose excerpt */
@@ -855,14 +868,27 @@ img {
   font-family: 'Lora', serif;
   font-size: 15px;
   font-style: italic;
-  line-height: 1.8;
+  line-height: 1.85;
   color: var(--text-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
   margin: 0;
+  max-height: 200px;
+  overflow: hidden;
+  position: relative;
+}
+
+.daily-modal__excerpt p {
+  margin: 0;
+}
+
+.daily-modal__excerpt::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: linear-gradient(transparent, var(--card-bg));
+  pointer-events: none;
 }
 
 /* Read link */
@@ -912,7 +938,9 @@ img {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-top: 4px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
   flex-wrap: wrap;
 }
 
