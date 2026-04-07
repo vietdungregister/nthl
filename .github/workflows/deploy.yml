@@ -133,6 +133,16 @@ jobs:
             sleep 20
 
             echo ""
+            echo "=== [4b/5] Restore static files (avatar, etc.) ==="
+            # Avatar không nằm trong Docker image → copy từ server vào container sau mỗi deploy
+            if [ -f /app/public/author-avatar.jpg ]; then
+              docker cp /app/public/author-avatar.jpg vibe-app:/app/public/author-avatar.jpg
+              echo "✅ author-avatar.jpg restored"
+            else
+              echo "⚠️  /app/public/author-avatar.jpg not found on server — skip"
+            fi
+
+            echo ""
             echo "=== [5/5] Health check ==="
             HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:3001/ || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
