@@ -187,8 +187,64 @@ git push origin master
 **Secrets cần cấu hình** (GitHub → Settings → Secrets → Actions):
 - `DOCKERHUB_USERNAME`: Docker Hub username
 - `DOCKERHUB_TOKEN`: Docker Hub access token
-- `SERVER_SSH_KEY`: (optional) Private key SSH cho auto-deploy
-- `SERVER_IP`: (optional) IP server
+- `SERVER_SSH_KEY`: **[BẮT BUỘC]** Private key SSH tới server (nội dung file `~/.ssh/id_ed25519`)
+- `SERVER_IP`: **[BẮT BUỘC]** IP của server (vd: `188.166.177.93`)
+
+**Setup secrets tự động qua GitHub API** (chạy 1 lần, không cần vào UI):
+```bash
+# Cần PyNaCl — dùng System Python 3.9 (không phải pyenv/crawbot python)
+/Library/Developer/CommandLineTools/usr/bin/python3 << 'PYEOF'
+import base64, json, urllib.request, urllib.error, sys
+
+TOKEN = "YOUR_GITHUB_TOKEN"  # từ .env.local → GITHUB_TOKEN
+REPO = "YOUR_GITHUB_REPO"    # từ .env.local → GITHUB_REPO
+
+# Lấy public key
+req = urllib.request.Request(
+    f"https://api.github.com/repos/{REPO}/actions/secrets/public-key",
+    headers={"Authorization": f"token {TOKEN}", "Accept": "application/vnd.github+json"}
+)
+with urllib.request.urlopen(req) as r:
+    pk_info = json.loads(r.read())
+
+key_id = pk_info["key_id"]
+pub_key_b64 = pk_info["key"]
+
+sys.path.insert(0, "/Users/duongvietdung/Library/Python/3.9/lib/python/site-packages")
+from nacl import encoding, public
+
+def encrypt_secret(pub_key_b64, secret):
+    pk = public.PublicKey(pub_key_b64.encode(), encoding.Base64Encoder)
+    box = public.SealedBox(pk)
+    return base64.b64encode(box.encrypt(secret.encode())).decode()
+
+with open("/root/.ssh/id_ed25519") as f:  # hoặc ~/.ssh/id_ed25519
+    ssh_key = f.read()
+
+secrets = {
+    "SERVER_SSH_KEY": ssh_key,
+    "SERVER_IP": "188.166.177.93",
+}
+
+for name, value in secrets.items():
+    encrypted = encrypt_secret(pub_key_b64, value)
+    data = json.dumps({"encrypted_value": encrypted, "key_id": key_id}).encode()
+    req = urllib.request.Request(
+        f"https://api.github.com/repos/{REPO}/actions/secrets/{name}",
+        data=data, method="PUT",
+        headers={"Authorization": f"token {TOKEN}",
+                 "Accept": "application/vnd.github+json",
+                 "Content-Type": "application/json"}
+    )
+    with urllib.request.urlopen(req) as r:
+        print(f"✅ Secret '{name}' set (HTTP {r.status})")
+PYEOF
+```
+
+> **Sau khi set secrets**, đảm bảo `id_ed25519.pub` đã có trong `authorized_keys` trên server:
+> ```bash
+> cat ~/.ssh/id_ed25519.pub | ssh root@SERVER_IP 'cat >> ~/.ssh/authorized_keys'
+> ```
 
 ### Phase 3B — Build Docker Image Manual (Fallback)
 
@@ -378,7 +434,24 @@ ssh root@SERVER_IP '
 '
 ```
 
-Thời gian: **~5 phút**.
+Thời gian: **~5 phút** (với GitHub Actions cache, build chỉ mất 1-2 phút vì chỉ rebuild layer thay đổi).
+
+> **Lưu ý quan trọng**: Workflow CHỈ trigger khi thay đổi file trong các paths:
+> `src/**`, `prisma/**`, `public/**`, `Dockerfile`, `docker-compose.yml`, `package.json`, `next.config.ts`...
+> Thay đổi `.github/**`, `README.md`, `CLAUDE.md`, `.agents/**` KHÔNG trigger build.
+
+### Static files sau restart
+
+Các file static không nằm trong Docker image (như avatar author) cần restore sau mỗi restart:
+```bash
+# Upload lên server (1 lần)
+rsync -avz public/author-avatar.jpg root@SERVER_IP:/app/public/
+
+# Workflow tự động copy vào container sau deploy
+# Xem bước [4b/5] trong .github/workflows/deploy.yml
+# Nếu cần copy thủ công:
+ssh root@SERVER_IP 'docker cp /app/public/author-avatar.jpg vibe-app:/app/public/author-avatar.jpg'
+```
 
 ## SQL Migration trực tiếp trên Production
 
