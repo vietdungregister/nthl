@@ -290,7 +290,7 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
                         type="text"
                         value={query}
                         onChange={e => setQuery(e.target.value)}
-                        placeholder="Tìm theo nghĩa, cảm xúc, chủ đề..."
+                        placeholder=""
                         className="date-filter__select"
                         style={{ flex: 1, paddingRight: results ? 32 : undefined }}
                     />

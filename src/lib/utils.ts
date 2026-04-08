@@ -67,10 +67,17 @@ export function getStatusInfo(status: string) {
     return STATUSES.find((s) => s.value === status) ?? STATUSES[0]
 }
 
-/** Chuẩn hoá title: thay newline + tab bằng space, collapse multiple spaces */
+/** Chuẩn hoá title: thay newline + tab bằng space, collapse multiple spaces
+ * Cũng chèn space giữa [lowercase][Uppercase] do crawl ghép không có space
+ */
 export function cleanTitle(t: string | null | undefined): string {
     if (!t) return ''
-    return t.replace(/[\n\r\t]+/g, ' ').replace(/  +/g, ' ').trim()
+    return t
+        .replace(/[\n\r\t]+/g, ' ')
+        // detect lowercase→Uppercase liền nhau (crawled content ghép dòng thiếu space)
+        .replace(/([a-z\u00C0-\u024F\u1E00-\u1EFF])([A-Z\u00C0-\u00D6\u00D8-\u00DE\u0100-\u0136\u0139-\u0148\u014A-\u0178\u1EA0-\u1EF9])/g, '$1 $2')
+        .replace(/  +/g, ' ')
+        .trim()
 }
 
 /** Tên tác giả hay xuất hiện ở đầu excerpt từ FB/forum import */
@@ -94,6 +101,7 @@ export function cleanExcerpt(text: string | null | undefined): string {
 /**
  * Làm sạch nội dung crawl: bỏ indent thừa, collapse nhiều dòng trống liên tiếp,
  * collapse nhiều space thành 1 nhưng GIỮ line breaks (quan trọng với thơ).
+ * Cũng chèn space giữa [lowercase][Uppercase] liền nhau (dòng ghép thiếu space).
  */
 export function cleanContent(text: string | null | undefined): string {
     if (!text) return ''
@@ -104,5 +112,7 @@ export function cleanContent(text: string | null | undefined): string {
         .replace(/[ \t]{2,}/g, ' ')
         // Collapse 3+ newlines liên tiếp → tối đa 2 (giữ paragraph break)
         .replace(/\n{3,}/g, '\n\n')
+        // detect lowercase→Uppercase liền nhau (crawled content ghép dòng thiếu space)
+        .replace(/([a-z\u00C0-\u024F\u1E00-\u1EFF])([A-Z\u00C0-\u00D6\u00D8-\u00DE\u0100-\u0136\u0139-\u0148\u014A-\u0178\u1EA0-\u1EF9])/g, '$1 $2')
         .trim()
 }

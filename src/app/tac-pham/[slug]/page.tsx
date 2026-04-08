@@ -4,7 +4,7 @@ import { after } from 'next/server'
 import Link from 'next/link'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
-import { getGenreLabel, formatDate } from '@/lib/utils'
+import { getGenreLabel, formatDate, cleanTitle, cleanContent } from '@/lib/utils'
 import PublicHeader from '@/components/PublicHeader'
 import LazyCommentSection from '@/components/lazy/LazyCommentSection'
 import type { Metadata } from 'next'
@@ -64,7 +64,7 @@ export default async function WorkDetailPage({ params }: Props) {
 
                 <div className="reading-card">
                     {work.title && !work.title.startsWith('Ảnh —') && !work.title.startsWith('Video —') && (
-                        <div className="reading-card__title">{work.title}</div>
+                        <div className="reading-card__title">{cleanTitle(work.title)}</div>
                     )}
 
                     {/* Display image/video for visual genres */}
@@ -78,10 +78,10 @@ export default async function WorkDetailPage({ params }: Props) {
                         </div>
                     )}
 
-                    {/* Content — always use white-space: pre-wrap to preserve formatting from CMS */}
+                    {/* Content — clean crawl artefacts before rendering */}
                     {work.content && (
                         <div className={isVisualGenre ? 'reading-card__prose' : (work.genre === 'poem' ? 'reading-card__poem' : 'reading-card__prose')}>
-                            {work.content}
+                            {cleanContent(work.content)}
                         </div>
                     )}
                 </div>
@@ -168,7 +168,7 @@ export default async function WorkDetailPage({ params }: Props) {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                         {related.map(r => (
                             <Link key={r.id} href={`/tac-pham/${r.slug}`} className="poem-card" style={{ minHeight: 'auto' }}>
-                                <div className="poem-card__title">{r.title}</div>
+                                <div className="poem-card__title">{cleanTitle(r.title)}</div>
                                 <div className="poem-card__excerpt">{r.excerpt ?? ''}</div>
                             </Link>
                         ))}
