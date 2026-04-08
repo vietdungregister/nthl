@@ -37,11 +37,15 @@ interface SearchWork {
     writtenAt: string | null
 }
 
+interface DbGenre {
+    value: string
+    label: string
+}
+
 const PAGE_SIZE = 20
 const TTL_MS = 15 * 60 * 1000  // 15 phút
 
 // Visual genres: search + filter qua URL (giữ photo grid layout)
-// Text genres: AI semantic search
 const VISUAL_GENRES = new Set(['photo', 'video', 'painting'])
 
 const GENRE_LABELS: Record<string, string> = {
@@ -55,9 +59,11 @@ interface Props {
     genre?: string
     month?: number
     year?: number
+    sort?: string
+    dbGenres?: DbGenre[]
 }
 
-export default function WorksSmartSearch({ children, defaultSearch, genre, month, year }: Props) {
+export default function WorksSmartSearch({ children, defaultSearch, genre, month, year, sort, dbGenres }: Props) {
     const router = useRouter()
     const isVisual = genre ? VISUAL_GENRES.has(genre) : false
 
@@ -68,7 +74,7 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
     // AI search state (text genres only)
     const [results, setResults] = useState<SearchWork[] | null>(null)
 
-    // Stable random sentence per work — chỉ chọn lại khi results thay đổi, không re-random khi typing
+    // Stable random sentence per work — chỉ chọn lại khi results thay đổi
     const stablePreview = useMemo(() => {
         if (!results) return new Map<string, string>()
         const map = new Map<string, string>()
@@ -81,17 +87,27 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
     const [error, setError] = useState<string | null>(null)
     const [page, setPage] = useState(1)
 
-    // Filter state — dùng URL params cho visual genres
+    // Filter state
     const [filterYear, setFilterYear] = useState<string>(year ? String(year) : '')
     const [filterMonth, setFilterMonth] = useState<string>(month ? String(month) : '')
     const [filterDay, setFilterDay] = useState<string>('')
+    const [filterGenre, setFilterGenre] = useState<string>(genre || '')
+    const [filterSort, setFilterSort] = useState<string>(sort || 'newest')
 
     const resultRef = useRef<HTMLDivElement>(null)
     const initialized = useRef(false)
 
+    // Sync state whe URL changes (genre/sort from server)
+    useEffect(() => {
+        setFilterGenre(genre || '')
+        setFilterSort(sort || 'newest')
+        setFilterYear(year ? String(year) : '')
+        setFilterMonth(month ? String(month) : '')
+    }, [genre, sort, year, month])
+
     // ── Restore sessionStorage (chỉ cho text genres / AI search) ──
     useEffect(() => {
-        if (isVisual) return  // visual genres không dùng session
+        if (isVisual) return
         if (initialized.current) return
         initialized.current = true
         if (defaultSearch) {
@@ -156,24 +172,30 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
         }
     }, [genre])
 
-    // ── URL Navigation (visual genres only) ──────────────────────
-    const navigateVisual = useCallback((
-        q: string, y: string, m: string
-    ) => {
+    // ── URL Navigation ──────────────────────────────────────────
+    const navigateWithFilters = useCallback((opts: {
+        q?: string, y?: string, m?: string, g?: string, s?: string
+    }) => {
         const params = new URLSearchParams()
-        if (genre) params.set('genre', genre)
+        const g = opts.g !== undefined ? opts.g : filterGenre
+        const s = opts.s !== undefined ? opts.s : filterSort
+        const y = opts.y !== undefined ? opts.y : filterYear
+        const m = opts.m !== undefined ? opts.m : filterMonth
+        const q = opts.q !== undefined ? opts.q : query
+        if (g) params.set('genre', g)
         if (q.trim()) params.set('search', q.trim())
         if (y) params.set('year', y)
         if (m) params.set('month', m)
+        if (s && s !== 'newest') params.set('sort', s)
         setLoading(true)
         router.push(`/tac-pham?${params}`)
-    }, [genre, router])
+    }, [filterGenre, filterSort, filterYear, filterMonth, query, router])
 
     // ── Submit handlers ─────────────────────────────────────────
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
         if (isVisual) {
-            navigateVisual(query, filterYear, filterMonth)
+            navigateWithFilters({ q: query, y: filterYear, m: filterMonth })
         } else {
             if (query.trim()) doSearch(query)
             else clearSearch()
@@ -195,16 +217,26 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
         }
     }
 
-    // ── Filter change handler (visual) ────────────────────────────
+    // ── Filter change handlers ────────────────────────────────────
+    function handleGenreChange(val: string) {
+        setFilterGenre(val)
+        navigateWithFilters({ g: val })
+    }
+
+    function handleSortChange(val: string) {
+        setFilterSort(val)
+        navigateWithFilters({ s: val })
+    }
+
     function handleYearChange(val: string) {
         setFilterYear(val)
         setFilterMonth('')
-        if (isVisual) navigateVisual(query, val, '')
+        navigateWithFilters({ y: val, m: '' })
     }
 
     function handleMonthChange(val: string) {
         setFilterMonth(val)
-        if (isVisual) navigateVisual(query, filterYear, val)
+        navigateWithFilters({ m: val })
     }
 
     // ── Client-side date filter (AI search results only) ─────────
@@ -226,14 +258,27 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
         resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
 
-    const selectStyle = {
-        padding: '8px 10px', borderRadius: 8, fontSize: 13,
+    const selectStyle: React.CSSProperties = {
+        padding: '7px 10px', borderRadius: 8, fontSize: 13,
         border: '1px solid var(--border)', background: 'var(--card-bg)',
         color: 'var(--text-secondary)', cursor: 'pointer',
+        outline: 'none', transition: 'border-color 0.15s',
     }
 
-    // Có active filters hay không (để hiện nút xóa)
     const hasActiveFilter = filterYear || filterMonth || (defaultSearch && defaultSearch.trim())
+
+    // Build genre options from dbGenres prop (server-side data)
+    const genreOptions: DbGenre[] = dbGenres && dbGenres.length > 0
+        ? dbGenres
+        : [
+            { value: 'poem', label: 'Thơ' },
+            { value: 'stt', label: 'Stt' },
+            { value: 'essay', label: 'Tản văn' },
+            { value: 'short_story', label: 'Truyện ngắn' },
+            { value: 'memoir', label: 'Bút ký' },
+            { value: 'photo', label: 'Ảnh' },
+            { value: 'video', label: 'Video' },
+        ]
 
     return (
         <div>
@@ -263,67 +308,98 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
                 </button>
             </form>
 
-            {/* ── Filter năm/tháng (visual genres: luôn hiển thị; AI search: chỉ khi có results) */}
-            {(isVisual || results !== null) && (
-                <div style={{
-                    display: 'flex', alignItems: 'center', justifyContent: isVisual ? 'flex-start' : 'space-between',
-                    flexWrap: 'wrap', gap: 8,
-                    padding: '10px 0 14px',
-                    borderBottom: results !== null ? '1px solid var(--border)' : undefined,
-                    marginBottom: results !== null ? 16 : 8,
-                    fontSize: 13, color: 'var(--text-secondary)',
-                    fontFamily: "'Inter', sans-serif",
-                }}>
-                    {/* Summary count — chỉ hiện khi AI search có results */}
-                    {results !== null && (
-                        <span>
-                            Tìm thấy <strong style={{ color: 'var(--accent)' }}>{filteredResults.length}</strong>
-                            {filterYear || filterMonth || filterDay
-                                ? ` bài${filterDay ? ` ngày ${filterDay}` : ''}${filterMonth ? `/${filterMonth}` : ''}${filterYear ? `/${filterYear}` : ''}`
-                                : ' tác phẩm liên quan'}
-                            {totalPages > 1 && <> · Trang {page}/{totalPages}</>}
-                        </span>
-                    )}
+            {/* ── Filter/Sort bar — LUÔN HIỂN THỊ ─────────────────────── */}
+            <div className="works-filter-bar">
+                {/* Genre selector */}
+                <select
+                    value={filterGenre}
+                    onChange={e => handleGenreChange(e.target.value)}
+                    style={selectStyle}
+                    aria-label="Lọc thể loại"
+                >
+                    <option value="">Tất cả thể loại</option>
+                    {genreOptions.map(g => (
+                        <option key={g.value} value={g.value}>{g.label}</option>
+                    ))}
+                </select>
 
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <select value={filterYear}
-                            onChange={e => handleYearChange(e.target.value)}
-                            style={selectStyle}>
-                            <option value=''>Tất cả năm</option>
-                            {Array.from({ length: 18 }, (_, i) => 2026 - i).map(y => (
-                                <option key={y} value={y}>{y}</option>
-                            ))}
-                        </select>
-                        <select value={filterMonth}
-                            onChange={e => handleMonthChange(e.target.value)}
-                            style={selectStyle}>
-                            <option value=''>Tháng</option>
-                            {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                                <option key={m} value={m}>Tháng {m}</option>
-                            ))}
-                        </select>
+                {/* Sort selector */}
+                <select
+                    value={filterSort}
+                    onChange={e => handleSortChange(e.target.value)}
+                    style={selectStyle}
+                    aria-label="Sắp xếp"
+                >
+                    <option value="newest">Mới nhất</option>
+                    <option value="oldest">Cũ nhất</option>
+                    <option value="views">Xem nhiều nhất</option>
+                </select>
 
-                        {/* Day filter chỉ cho AI search */}
-                        {results !== null && (
-                            <select value={filterDay}
-                                onChange={e => { setFilterDay(e.target.value); setPage(1) }}
-                                style={selectStyle}>
-                                <option value=''>Ngày</option>
-                                {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
-                                    <option key={d} value={d}>Ngày {d}</option>
-                                ))}
-                            </select>
-                        )}
+                {/* Year */}
+                <select value={filterYear}
+                    onChange={e => handleYearChange(e.target.value)}
+                    style={selectStyle}
+                    aria-label="Lọc năm"
+                >
+                    <option value=''>Tất cả năm</option>
+                    {Array.from({ length: 18 }, (_, i) => 2026 - i).map(y => (
+                        <option key={y} value={y}>{y}</option>
+                    ))}
+                </select>
 
-                        {hasActiveFilter && (
-                            <button onClick={clearSearch}
-                                style={{ ...selectStyle, padding: '6px 10px' }}>
-                                ✕ Xóa lọc
-                            </button>
-                        )}
-                    </div>
-                </div>
-            )}
+                {/* Month */}
+                <select value={filterMonth}
+                    onChange={e => handleMonthChange(e.target.value)}
+                    style={selectStyle}
+                    aria-label="Lọc tháng"
+                >
+                    <option value=''>Tháng</option>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                        <option key={m} value={m}>Tháng {m}</option>
+                    ))}
+                </select>
+
+                {/* Day filter — chỉ cho AI search */}
+                {results !== null && (
+                    <select value={filterDay}
+                        onChange={e => { setFilterDay(e.target.value); setPage(1) }}
+                        style={selectStyle}
+                        aria-label="Lọc ngày"
+                    >
+                        <option value=''>Ngày</option>
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                            <option key={d} value={d}>Ngày {d}</option>
+                        ))}
+                    </select>
+                )}
+
+                {/* Xóa lọc */}
+                {(hasActiveFilter || filterGenre || filterSort !== 'newest') && (
+                    <button
+                        onClick={() => {
+                            setFilterGenre('')
+                            setFilterSort('newest')
+                            setFilterYear('')
+                            setFilterMonth('')
+                            setFilterDay('')
+                            setResults(null)
+                            setQuery('')
+                            router.push('/tac-pham')
+                        }}
+                        style={{ ...selectStyle, color: 'var(--accent)', borderColor: 'var(--accent)', fontWeight: 500 }}
+                    >
+                        ✕ Xóa lọc
+                    </button>
+                )}
+
+                {/* AI search result count */}
+                {results !== null && (
+                    <span style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--text-muted)', fontFamily: "'Inter', sans-serif" }}>
+                        Tìm thấy <strong style={{ color: 'var(--accent)' }}>{filteredResults.length}</strong> tác phẩm
+                        {totalPages > 1 && <> · Trang {page}/{totalPages}</>}
+                    </span>
+                )}
+            </div>
 
             {/* ── Skeleton Loading ─────────────────────────────────────── */}
             {loading && !results && <SearchSkeleton />}

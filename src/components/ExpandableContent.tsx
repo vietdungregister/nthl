@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { cleanContent } from '@/lib/utils'
 
 interface Props {
     content: string
@@ -11,8 +12,10 @@ interface Props {
 export default function ExpandableContent({ content, limit = 500, className }: Props) {
     const [expanded, setExpanded] = useState(false)
 
-    const isLong = content.length > limit
-    const displayContent = expanded ? content : content.slice(0, limit) + (isLong ? '...' : '')
+    // Clean crawled content before display
+    const cleaned = cleanContent(content)
+    const isLong = cleaned.length > limit
+    const displayContent = expanded ? cleaned : cleaned.slice(0, limit) + (isLong ? '...' : '')
 
     return (
         <div className={className}>

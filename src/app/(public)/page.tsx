@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { getCachedGenres } from '@/lib/cache'
+import { cleanTitle, cleanExcerpt } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
 import ExpandableContent from '@/components/ExpandableContent'
@@ -14,28 +15,6 @@ const TEXT_GENRES   = ['poem', 'short_story', 'essay', 'novel', 'prose']
 
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
-}
-
-/** Chuẩn hoá title: thay newline + tab bằng space, collapse multiple spaces */
-function cleanTitle(t: string | null): string {
-  if (!t) return ''
-  return t.replace(/[\n\r\t]+/g, ' ').replace(/  +/g, ' ').trim()
-}
-
-/** Clean excerpt: bỏ tên tác giả ở đầu (nhiều variants từ FB/forum import) */
-const AUTHOR_PREFIXES = [
-  'Nguyễn Thế Hoàng Linh', 'NGUYỄN THẾ HOÀNG LINH',
-  'nguyenthehoanglinh', 'away',
-]
-function cleanExcerpt(text: string | null): string {
-  if (!text) return ''
-  let t = text.trim()
-  for (const prefix of AUTHOR_PREFIXES) {
-    if (t.toLowerCase().startsWith(prefix.toLowerCase())) {
-      t = t.slice(prefix.length).replace(/^[\s\n.,;:–—-]+/, '').trim()
-    }
-  }
-  return t
 }
 
 const WORK_LIST_SELECT = {

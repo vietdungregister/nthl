@@ -66,3 +66,43 @@ export function getGenreEmoji(genre: string): string {
 export function getStatusInfo(status: string) {
     return STATUSES.find((s) => s.value === status) ?? STATUSES[0]
 }
+
+/** Chuẩn hoá title: thay newline + tab bằng space, collapse multiple spaces */
+export function cleanTitle(t: string | null | undefined): string {
+    if (!t) return ''
+    return t.replace(/[\n\r\t]+/g, ' ').replace(/  +/g, ' ').trim()
+}
+
+/** Tên tác giả hay xuất hiện ở đầu excerpt từ FB/forum import */
+const AUTHOR_PREFIXES = [
+    'Nguyễn Thế Hoàng Linh', 'NGUYỄN THẾ HOÀNG LINH',
+    'nguyenthehoanglinh', 'away',
+]
+
+/** Clean excerpt: bỏ tên tác giả ở đầu */
+export function cleanExcerpt(text: string | null | undefined): string {
+    if (!text) return ''
+    let t = text.trim()
+    for (const prefix of AUTHOR_PREFIXES) {
+        if (t.toLowerCase().startsWith(prefix.toLowerCase())) {
+            t = t.slice(prefix.length).replace(/^[\s\n.,;:–—-]+/, '').trim()
+        }
+    }
+    return t
+}
+
+/**
+ * Làm sạch nội dung crawl: bỏ indent thừa, collapse nhiều dòng trống liên tiếp,
+ * collapse nhiều space thành 1 nhưng GIỮ line breaks (quan trọng với thơ).
+ */
+export function cleanContent(text: string | null | undefined): string {
+    if (!text) return ''
+    return text
+        // Bỏ leading whitespace (tab/space) ở đầu mỗi dòng
+        .replace(/^[ \t]+/gm, '')
+        // Collapse nhiều space trên cùng 1 dòng thành 1
+        .replace(/[ \t]{2,}/g, ' ')
+        // Collapse 3+ newlines liên tiếp → tối đa 2 (giữ paragraph break)
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+}

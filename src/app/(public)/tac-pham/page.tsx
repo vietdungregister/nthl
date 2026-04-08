@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { getCachedGenres, getCachedTags } from '@/lib/cache'
+import { cleanTitle, cleanExcerpt } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
 import { formatDate } from '@/lib/utils'
@@ -12,7 +13,12 @@ export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = { title: 'Tác phẩm' }
 
-interface Props { searchParams: Promise<{ genre?: string; tag?: string; page?: string; month?: string; year?: string; search?: string }> }
+interface Props {
+    searchParams: Promise<{
+        genre?: string; tag?: string; page?: string
+        month?: string; year?: string; search?: string; sort?: string
+    }>
+}
 
 const VISUAL_GENRES = ['photo', 'video', 'painting']
 
@@ -21,6 +27,7 @@ export default async function WorksPage({ searchParams }: Props) {
     const genre = sp.genre
     const tag = sp.tag
     const search = sp.search
+    const sort = sp.sort || 'newest'
     const month = sp.month ? parseInt(sp.month) : undefined
     const year = sp.year ? parseInt(sp.year) : undefined
     const page = parseInt(sp.page || '1')
@@ -50,12 +57,19 @@ export default async function WorksPage({ searchParams }: Props) {
         where.publishedAt = { gte: startDate, lt: endDate }
     }
 
+    // Sort order
+    const orderBy: Record<string, string> = sort === 'oldest'
+        ? { publishedAt: 'asc' }
+        : sort === 'views'
+            ? { viewCount: 'desc' }
+            : { publishedAt: 'desc' }
+
     // genres + tags được cache 1h — không query DB mỗi request
     // works + total vẫn dynamic theo filter của user
     const [works, total, allTags, dbGenres] = await Promise.all([
         prisma.work.findMany({
             where,
-            orderBy: { publishedAt: 'desc' },
+            orderBy,
             skip: (page - 1) * limit,
             take: limit,
             // KHÔNG select content — với 10k tác phẩm × vài trăm KB = GB dữ liệu thừa
@@ -83,13 +97,14 @@ export default async function WorksPage({ searchParams }: Props) {
         if (search) params.set('search', search)
         if (month) params.set('month', String(month))
         if (year) params.set('year', String(year))
+        if (sort && sort !== 'newest') params.set('sort', sort)
         params.set('page', String(p))
         return `/tac-pham?${params}`
     }
 
     return (
         <>
-            <WorksSmartSearch genre={genre} month={month} year={year} defaultSearch={search}>
+            <WorksSmartSearch genre={genre} month={month} year={year} defaultSearch={search} sort={sort} dbGenres={dbGenres}>
 
             {tag && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0 12px' }}>
@@ -121,11 +136,11 @@ export default async function WorksPage({ searchParams }: Props) {
                                     ) : (
                                         <div className="insta-grid__placeholder">
                                             <span>{work.genre === 'video' ? '🎬' : work.genre === 'painting' ? '🎨' : '📷'}</span>
-                                            <span className="insta-grid__placeholder-title">{work.title?.slice(0, 30) || 'Video'}</span>
+                                            <span className="insta-grid__placeholder-title">{cleanTitle(work.title)?.slice(0, 30) || 'Video'}</span>
                                         </div>
                                     )}
                                     <div className="insta-grid__overlay">
-                                        <span>{work.title || work.excerpt?.slice(0, 40) || ''}</span>
+                                        <span>{cleanTitle(work.title) || work.excerpt?.slice(0, 40) || ''}</span>
                                     </div>
                                 </Link>
                             )
@@ -141,7 +156,11 @@ export default async function WorksPage({ searchParams }: Props) {
                                     {work.isFeatured && <span className="poem-card__star">Nổi bật</span>}
                                     {(() => { const d = (work as any).writtenAt || work.publishedAt; return d && <span className="feed-card__date">{formatDate(d)}</span> })()}
                                 </div>
-                                {work.title && <Link href={`/tac-pham/${work.slug}`} className="feed-card__title">{work.title}</Link>}
+                                {work.title && (
+                                    <Link href={`/tac-pham/${work.slug}`} className="feed-card__title">
+                                        {cleanTitle(work.title)}
+                                    </Link>
+                                )}
 
                                 {VISUAL_GENRES.includes(work.genre) && work.coverImageUrl && (
                                     <div style={{ marginBottom: 12, borderRadius: 10, overflow: 'hidden' }}>
@@ -157,7 +176,7 @@ export default async function WorksPage({ searchParams }: Props) {
 
                                 {/* Dùng excerpt — không cần load full content (có thể rất lớn) */}
                                 {!VISUAL_GENRES.includes(work.genre) && work.excerpt && (
-                                    <ExpandableContent content={work.excerpt} limit={500} className={work.genre === 'poem' ? 'feed-card__poem' : 'feed-card__prose'} />
+                                    <ExpandableContent content={cleanExcerpt(work.excerpt)} limit={500} className={work.genre === 'poem' ? 'feed-card__poem' : 'feed-card__prose'} />
                                 )}
                                 {VISUAL_GENRES.includes(work.genre) && work.excerpt && (
                                     <ExpandableContent content={work.excerpt} limit={200} className="feed-card__prose" />

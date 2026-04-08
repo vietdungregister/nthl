@@ -1091,13 +1091,14 @@ img {
 
 .feed-card__genre {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--accent);
+  letter-spacing: 0.07em;
+  color: var(--accent-dark);
   background: var(--accent-light);
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 9px;
+  border-radius: 5px;
+  border: 1px solid rgba(139, 111, 71, 0.18);
 }
 
 .feed-card__date {
@@ -1109,13 +1110,17 @@ img {
 .feed-card__title {
   font-family: 'Playfair Display', serif;
   font-weight: 700;
-  font-size: 26px;
+  font-size: 22px;
   color: var(--text-primary);
   text-decoration: none;
   display: block;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
   line-height: 1.3;
   transition: color 0.15s;
+  /* Fix title overflow from crawled data with stray newlines */
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .feed-card__title:hover {
@@ -1124,20 +1129,25 @@ img {
 
 .feed-card__poem {
   font-family: 'Lora', serif;
-  font-size: 17px;
-  line-height: 2.1;
+  font-size: 16px;
+  line-height: 2.0;
   color: var(--text-primary);
   white-space: pre-wrap;
-  padding: 0 12px;
+  word-break: break-word;
+  /* Thêm left border nhẹ để phân biệt thơ */
+  padding: 4px 8px 4px 16px;
+  border-left: 3px solid var(--accent-light);
+  margin-left: 4px;
 }
 
 .feed-card__prose {
   font-family: 'Lora', serif;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.9;
   color: var(--text-primary);
   white-space: pre-wrap;
   word-wrap: break-word;
+  word-break: break-word;
 }
 
 .feed-card__prose p {
@@ -2329,6 +2339,43 @@ img {
 }
 
 /* ===========================
+   WORKS FILTER BAR
+   Always-visible row below search: genre / sort / year / month
+   =========================== */
+.works-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 0 14px;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 16px;
+  font-family: 'Inter', sans-serif;
+}
+
+.works-filter-bar select {
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+}
+
+.works-filter-bar select:hover {
+  border-color: #CEC9C0;
+}
+
+.works-filter-bar select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(139, 111, 71, 0.12);
+}
+
+/* ===========================
    RESPONSIVE — TABLET (max 1100px)
    Right sidebar disappears, left stays
    =========================== */
@@ -2639,6 +2686,16 @@ img {
   .date-filter {
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  /* Works filter bar */
+  .works-filter-bar {
+    gap: 6px;
+  }
+
+  .works-filter-bar select {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 120px;
   }
 }
 
