@@ -79,11 +79,19 @@ export default async function WorkDetailPage({ params }: Props) {
                     )}
 
                     {/* Content — clean crawl artefacts before rendering */}
-                    {work.content && (
-                        <div className={isVisualGenre ? 'reading-card__prose' : (work.genre === 'poem' ? 'reading-card__poem' : 'reading-card__prose')}>
-                            {cleanContent(work.content)}
-                        </div>
-                    )}
+                    {work.content && (() => {
+                        const cleaned = cleanContent(work.content)
+                        // Thơ: mỗi dòng chỉ cách nhau 1 \n (không có dòng trắng xen giữa)
+                        // Văn xuôi: giữ \n\n cho paragraph break
+                        const displayContent = work.genre === 'poem'
+                            ? cleaned.replace(/\n{2,}/g, '\n')
+                            : cleaned
+                        return (
+                            <div className={isVisualGenre ? 'reading-card__prose' : (work.genre === 'poem' ? 'reading-card__poem' : 'reading-card__prose')}>
+                                {displayContent}
+                            </div>
+                        )
+                    })()}
                 </div>
 
                 {/* Bản dịch */}
