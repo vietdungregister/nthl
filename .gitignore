@@ -65,3 +65,6 @@ profile.json
 /facebook-nguyenthehoanglinh-06_03_2026-y1cYzpJi/
 *.dump
 *.tar.gz
+
+# Private docs — DO NOT commit
+CLAUDE.md

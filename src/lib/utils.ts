@@ -67,17 +67,66 @@ export function getStatusInfo(status: string) {
     return STATUSES.find((s) => s.value === status) ?? STATUSES[0]
 }
 
-/** Chuẩn hoá title: thay newline + tab bằng space, collapse multiple spaces
- * Cũng chèn space giữa [lowercase][Uppercase] do crawl ghép không có space
+/**
+ * Fix Vietnamese syllables bị tách bởi space do crawl.
+ *
+ * Các pattern:
+ *  "s ống"   → "sống"   (phụ âm đầu từ + space + phần có dấu)
+ *  "b ạn"    → "bạn"
+ *  "l ạnh"   → "lạnh"
+ *  "đ ến"    → "đến"
+ *  "CHUYỆ N" → "CHUYỆN" (nguyên âm có dấu + space + 1-2 ký tự cuối)
+ *  "CỦ A"    → "CỦA"
+ */
+export function fixSplitVietnamese(text: string): string {
+  const VN = 'àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ'
+
+  let r = text
+  for (let i = 0; i < 5; i++) {
+    const prev = r
+
+    // P1: phụ âm đơn/đôi ở ĐẦU TỪ (sau space hoặc đầu chuỗi) + space + phần mang dấu
+    // Ex: "s ống", "b ạn", "l ạnh", "đ ến", "ph ải", "tr ời"
+    r = r.replace(
+      new RegExp(`((?:^|(?<= ))[bcdfghjklmnpqrstvwxyz\u0111]{1,2}) ([${VN}][a-z${VN}]{0,3})(?= |\\.|,|!|\\?|\\n|$)`, 'gmu'),
+      '$1$2'
+    )
+
+    // P2: nguyên âm có dấu UPPERCASE + space + 1-2 ký tự cuối (lỗi trong chuỗi ALL-CAPS)
+    // Ex: "CHUYỆ N", "CỦ A", "THỰ C" — KHÔNG match lowercase ("có là" giữ nguyên)
+    r = r.replace(
+      new RegExp(`([ÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴ]) ([A-Z${VN}]{1,2})(?= |\\.|,|!|\\?|\\n|$)`, 'gmu'),
+      '$1$2'
+    )
+
+    // P3: lowercase + space + single char (lỗi crawl phổ biến)
+    // Ex: "n gười", "c ủa"
+    r = r.replace(
+      new RegExp(`([a-z]) ([a-z])(?= |\\.|,|!|\\?|\\n|$)`, 'gmu'),
+      '$1$2'
+    )
+
+    if (r === prev) break
+  }
+  return r
+}
+
+
+
+
+/** Chuẩn hoá title: thay newline + tab bằng space, collapse multiple spaces,
+ * chèn space giữa [lowercase][Uppercase] do crawl ghép không có space,
+ * và fix Vietnamese syllables bị tách.
  */
 export function cleanTitle(t: string | null | undefined): string {
-    if (!t) return ''
-    return t
-        .replace(/[\n\r\t]+/g, ' ')
-        // detect lowercase→Uppercase liền nhau (crawled content ghép dòng thiếu space)
-        .replace(/([a-z\u00C0-\u024F\u1E00-\u1EFF])([A-Z\u00C0-\u00D6\u00D8-\u00DE\u0100-\u0136\u0139-\u0148\u014A-\u0178\u1EA0-\u1EF9])/g, '$1 $2')
-        .replace(/  +/g, ' ')
-        .trim()
+  if (!t) return ''
+  const fixed = fixSplitVietnamese(
+    t.replace(/[\n\r\t]+/g, ' ')
+     .replace(/([a-z\u00C0-\u024F\u1E00-\u1EFF])([A-Z\u00C0-\u00D6\u00D8-\u00DE\u0100-\u0136\u0139-\u0148\u014A-\u0178\u1EA0-\u1EF9])/g, '$1 $2')
+     .replace(/  +/g, ' ')
+     .trim()
+  )
+  return fixed.replace(/  +/g, ' ').trim()
 }
 
 /** Tên tác giả hay xuất hiện ở đầu excerpt từ FB/forum import */
@@ -101,11 +150,11 @@ export function cleanExcerpt(text: string | null | undefined): string {
 /**
  * Làm sạch nội dung crawl: bỏ indent thừa, collapse nhiều dòng trống liên tiếp,
  * collapse nhiều space thành 1 nhưng GIỮ line breaks (quan trọng với thơ).
- * Cũng chèn space giữa [lowercase][Uppercase] liền nhau (dòng ghép thiếu space).
+ * Fix Vietnamese syllables bị tách + chèn space giữa camelCase liền nhau.
  */
 export function cleanContent(text: string | null | undefined): string {
     if (!text) return ''
-    return text
+    const step1 = text
         // Bỏ leading whitespace (tab/space) ở đầu mỗi dòng
         .replace(/^[ \t]+/gm, '')
         // Collapse nhiều space trên cùng 1 dòng thành 1
@@ -115,4 +164,6 @@ export function cleanContent(text: string | null | undefined): string {
         // detect lowercase→Uppercase liền nhau (crawled content ghép dòng thiếu space)
         .replace(/([a-z\u00C0-\u024F\u1E00-\u1EFF])([A-Z\u00C0-\u00D6\u00D8-\u00DE\u0100-\u0136\u0139-\u0148\u014A-\u0178\u1EA0-\u1EF9])/g, '$1 $2')
         .trim()
+    // Apply Vietnamese split fix line by line (để không phá line breaks của thơ)
+    return step1.split('\n').map(line => fixSplitVietnamese(line)).join('\n')
 }

@@ -1,21 +1,18 @@
-import { getCachedAuthorProfile, getCachedGenres, getCachedGenreCounts, getCachedBooks, getCachedCollections } from '@/lib/cache'
-import Link from 'next/link'
+import { getCachedAuthorProfile, getCachedGenres, getCachedGenreCounts, getCachedBooks, getCachedRecentWorks } from '@/lib/cache'
 import PublicHeader from '@/components/PublicHeader'
 import SidebarNav from '@/components/SidebarNav'
 import { Suspense } from 'react'
 
 // Cache tất cả sidebar data — revalidate qua tags khi admin thay đổi
-// Không còn force-dynamic → Next.js có thể cache HTML output
-export const revalidate = 300 // ISR 5 phút, đồng bộ với homepage
+export const revalidate = 300 // ISR 5 phút
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  // Tất cả queries đã được cache (unstable_cache) — 0 DB round-trips khi cache warm
-  const [author, dbGenres, genreCounts, books, collections] = await Promise.all([
+  const [author, dbGenres, genreCounts, books, recentWorks] = await Promise.all([
     getCachedAuthorProfile(),
     getCachedGenres(),
     getCachedGenreCounts(),
     getCachedBooks(),
-    getCachedCollections(),
+    getCachedRecentWorks(),
   ])
 
   // Hardcoded special genres — ALWAYS present regardless of DB
@@ -23,7 +20,6 @@ export default async function PublicLayout({ children }: { children: React.React
     { value: 'photo', label: 'Ảnh', emoji: '📷', order: 90 },
     { value: 'video', label: 'Video', emoji: '🎬', order: 91 },
   ]
-  // Merge: DB genres + hardcoded ones (skip if already in DB)
   const existingValues = new Set(dbGenres.map((g: { value: string }) => g.value))
   const mergedGenres = [
     ...dbGenres,
@@ -37,7 +33,7 @@ export default async function PublicLayout({ children }: { children: React.React
       <PublicHeader />
 
       <div className="page-layout">
-        {/* LEFT SIDEBAR — shared across all public pages */}
+        {/* LEFT SIDEBAR */}
         <aside className="works-sidebar">
           <div className="works-sidebar__author">
             {author?.avatarUrl ? (
@@ -49,37 +45,56 @@ export default async function PublicLayout({ children }: { children: React.React
             <p className="works-sidebar__bio">{author?.bioShort || 'Nhà thơ · Hà Nội'}</p>
           </div>
           <div className="works-sidebar__divider" />
-          {/* SidebarNav is client-side so it reads URL without server re-render */}
           <Suspense fallback={null}>
-            <SidebarNav
+          <SidebarNav
               genres={mergedGenres}
               genreCounts={genreCounts}
               books={books}
               totalAllWorks={totalAllWorks}
+              recentWorks={recentWorks}
             />
           </Suspense>
         </aside>
 
-        {/* CENTER — page-specific content */}
+        {/* CENTER */}
         <div className="page-feed">
           {children}
         </div>
 
-        {/* RIGHT SIDEBAR — Collections */}
-        {collections.length > 0 && (
-          <aside className="home-right-sidebar">
-            <h3 className="home-right-sidebar__title">Bộ sưu tập</h3>
-            <div className="home-right-sidebar__list">
-              {collections.map((col: { id: string; slug: string; title: string; description: string | null; _count: { works: number } }) => (
-                <Link key={col.id} href={`/bo-suu-tap/${col.slug}`} className="home-right-sidebar__item">
-                  <div className="home-right-sidebar__item-title">{col.title}</div>
-                  {col.description && <div className="home-right-sidebar__item-desc">{col.description}</div>}
-                  <div className="home-right-sidebar__item-count">{col._count.works} tác phẩm</div>
-                </Link>
-              ))}
+        {/* RIGHT SIDEBAR — QR + Books */}
+        <aside className="home-right-sidebar">
+          {/* QR Donate */}
+          <div className="sidebar-qr">
+            <img
+              src="/qr-donate.jpg"
+              alt="QR ủng hộ tác giả Nguyễn Thế Hoàng Linh"
+              className="sidebar-qr__img"
+            />
+            <span className="sidebar-qr__label">Ủng hộ tác giả</span>
+          </div>
+
+          {/* Book List */}
+          {books.length > 0 && (
+            <div className="sidebar-books">
+              <h3 className="sidebar-books__title">Sách</h3>
+              <ul className="sidebar-books__list">
+                {books.map((book: { id: string; slug: string; title: string; buyUrl: string | null }) => (
+                  <li key={book.id}>
+                    <a
+                      href={book.buyUrl || `/sach/${book.slug}`}
+                      target={book.buyUrl ? '_blank' : '_self'}
+                      rel={book.buyUrl ? 'noopener noreferrer' : undefined}
+                      className="sidebar-books__link"
+                    >
+                      <span>{book.title}</span>
+                      {book.buyUrl && <span className="sidebar-books__arrow">→</span>}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
-          </aside>
-        )}
+          )}
+        </aside>
       </div>
 
       <footer className="pub-footer">

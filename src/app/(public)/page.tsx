@@ -1,176 +1,90 @@
 import { prisma } from '@/lib/db'
-import { getCachedGenres } from '@/lib/cache'
-import { cleanTitle, cleanExcerpt } from '@/lib/utils'
+import { cleanTitle, fixSplitVietnamese } from '@/lib/utils'
 import Link from 'next/link'
-import Image from 'next/image'
-import ExpandableContent from '@/components/ExpandableContent'
-import LazyDailyWorkBanner from '@/components/lazy/LazyDailyWorkBanner'
-import WorksSmartSearch from '@/components/public/WorksSmartSearch'
+import PoemTheater from '@/components/public/PoemTheater'
 
-// Dynamic vì có pagination + search params
 export const dynamic = 'force-dynamic'
 
-const VISUAL_GENRES = ['photo', 'video', 'painting']
-const TEXT_GENRES   = ['poem', 'short_story', 'essay', 'novel', 'prose']
-
-function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)]
+/** Strip title from start of content if present */
+function stripTitle(content: string, title: string): string {
+  const normalized = content.trimStart()
+  if (normalized.toLowerCase().startsWith(title.toLowerCase())) {
+    return normalized.slice(title.length).replace(/^[\s\n]+/, '')
+  }
+  return normalized
 }
 
-const WORK_LIST_SELECT = {
-  id: true, title: true, slug: true, genre: true,
-  excerpt: true, coverImageUrl: true,
-  publishedAt: true, writtenAt: true, isFeatured: true,
-  tags: { include: { tag: { select: { name: true, slug: true } } } },
-} as const
-
-interface Props { searchParams: Promise<{ page?: string }> }
-
-export default async function HomePage({ searchParams }: Props) {
-  const sp = await searchParams
-  const page = Math.max(1, parseInt(sp.page || '1'))
-  const limit = 20
-
-  const today = new Date()
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-  const todayEnd   = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
-
-  const [works, total, dbGenres, featuredToday] = await Promise.all([
-    prisma.work.findMany({
-      where: { status: 'published', deletedAt: null },
-      take: limit,
-      skip: (page - 1) * limit,
-      orderBy: { publishedAt: 'desc' },
-      select: WORK_LIST_SELECT,
-    }).catch(() => []),
+export default async function HomePage() {
+  type TheaterWork = { id: string; title: string; slug: string; genre: string; content: string; writtenAt: Date | null }
+  const [total, theaterRows] = await Promise.all([
     prisma.work.count({ where: { status: 'published', deletedAt: null } }).catch(() => 0),
-    getCachedGenres().catch(() => []),
-    prisma.work.findMany({
-      where: { status: 'published', deletedAt: null, featuredDate: { gte: todayStart, lt: todayEnd } },
-      select: { id: true, title: true, slug: true, genre: true, excerpt: true },
-    }).catch(() => []),
-  ])
-
-  const getLabel = (val: string) => dbGenres.find(g => g.value === val)?.label ?? val
-  const totalPages = Math.ceil(total / limit)
-
-  const buildUrl = (p: number) => p === 1 ? '/' : `/?page=${p}`
-
-  // ── Daily work cho popup ─────────────────────────────────────────────
-  // Ưu tiên: (1) bài được đánh dấu featured hôm nay, (2) random từ toàn kho
-  // Dùng $queryRaw + ORDER BY RANDOM() để lấy đúng random, tránh bias 20 bài đầu
-  type PopupWork = { id: string; title: string; slug: string; genre: string; content: string }
-
-  let dailyWork = null
-  if (featuredToday.length > 0) {
-    const w = pickRandom(featuredToday)
-    const rows = await prisma.$queryRaw<PopupWork[]>`
-      SELECT id, title, slug, genre, LEFT(content, 3000) AS content
-      FROM "Work"
-      WHERE id = ${w.id} AND status = 'published' AND "deletedAt" IS NULL
-      LIMIT 1
-    `
-    if (rows[0]) dailyWork = { ...rows[0], genreLabel: getLabel(rows[0].genre) }
-  } else {
-    // Random từ toàn kho — chỉ lấy bài có title + content, thể loại văn bản
-    const rows = await prisma.$queryRaw<PopupWork[]>`
-      SELECT id, title, slug, genre, LEFT(content, 3000) AS content
+    prisma.$queryRaw<TheaterWork[]>`
+      SELECT id, title, slug, genre, LEFT(content, 8000) AS content, "writtenAt"
       FROM "Work"
       WHERE status = 'published'
         AND "deletedAt" IS NULL
         AND title IS NOT NULL AND title != ''
         AND content IS NOT NULL AND LENGTH(content) > 50
-        AND genre IN ('poem', 'essay', 'short_story', 'memoir')
+        AND genre IN ('poem', 'essay', 'short_story', 'memoir', 'stt')
       ORDER BY RANDOM()
       LIMIT 1
-    `.catch(() => [] as PopupWork[])
-    if (rows[0]) dailyWork = { ...rows[0], genreLabel: getLabel(rows[0].genre) }
+    `.catch(() => [] as TheaterWork[]),
+  ])
+
+  const genreLabels: Record<string, string> = {
+    poem: 'Thơ', essay: 'Tản văn', short_story: 'Truyện ngắn', memoir: 'Hồi ký', stt: 'Status',
   }
 
+  const rawTheater = theaterRows[0] ?? null
+  const initialWork = rawTheater ? {
+    id: rawTheater.id,
+    title: cleanTitle(rawTheater.title),
+    slug: rawTheater.slug,
+    genre: rawTheater.genre,
+    genreLabel: genreLabels[rawTheater.genre] ?? rawTheater.genre,
+    content: stripTitle(rawTheater.content, rawTheater.title)
+      .split('\n').map((l: string) => fixSplitVietnamese(l)).join('\n'),
+    lineCount: rawTheater.content.split('\n').filter((l: string) => l.trim()).length,
+    writtenAt: rawTheater.writtenAt ? new Date(rawTheater.writtenAt).toISOString().slice(0, 10) : null,
+  } : null
 
   return (
     <>
-      {/* Hero */}
-      <div className="pub-hero" style={{ padding: '20px 16px 24px' }}>
-        <h1>Nguyễn Thế Hoàng Linh</h1>
-      </div>
+      {/* ── THEATER SECTION (full-height hero) ── */}
+      {initialWork && <PoemTheater initialWork={initialWork} />}
 
-      {/* Daily Work Banner */}
-      {dailyWork && <LazyDailyWorkBanner work={dailyWork} />}
-
-      {/* Smart Search + Feed */}
-      <WorksSmartSearch>
-        {/* Regular paginated feed */}
-        <div className="feed-layout" style={{ padding: '0', maxWidth: 'none' }}>
-          {works.map(work => (
-            <article key={work.id} className="feed-card">
-              <div className="feed-card__header">
-                <span className="feed-card__genre">{getLabel(work.genre)}</span>
-                {work.isFeatured && <span className="poem-card__star">Nổi bật</span>}
-                {(() => { const d = (work as any).writtenAt || work.publishedAt; return d && (
-                  <span className="feed-card__date">
-                    {new Date(d).toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' })}
-                  </span>
-                )})()}
-              </div>
-              {work.title && <Link href={`/tac-pham/${work.slug}`} className="feed-card__title">{cleanTitle(work.title)}</Link>}
-
-              {VISUAL_GENRES.includes(work.genre) && work.coverImageUrl && (
-                <div style={{ marginBottom: 12, borderRadius: 10, overflow: 'hidden' }}>
-                  {(work.genre === 'video' || work.coverImageUrl.match(/\.(mp4|webm|ogg|mov)$/i)) ? (
-                    <video src={work.coverImageUrl} controls muted playsInline preload="none" style={{ width: '100%', maxHeight: 420, objectFit: 'cover', background: '#000' }} />
-                  ) : (
-                    <Link href={`/tac-pham/${work.slug}`}>
-                      <Image src={work.coverImageUrl} alt={work.title ?? ''} width={800} height={420} style={{ width: '100%', maxHeight: 420, objectFit: 'cover' }} loading="lazy" sizes="(max-width: 768px) 100vw, 800px" />
-                    </Link>
-                  )}
-                </div>
-              )}
-
-              {!VISUAL_GENRES.includes(work.genre) && work.excerpt && (
-                <ExpandableContent content={cleanExcerpt(work.excerpt)} limit={500} className={work.genre === 'poem' ? 'feed-card__poem' : 'feed-card__prose'} />
-              )}
-              {VISUAL_GENRES.includes(work.genre) && work.excerpt && (
-                <ExpandableContent content={work.excerpt} limit={200} className="feed-card__prose" />
-              )}
-
-              {work.tags.length > 0 && (
-                <div className="feed-card__tags">
-                  {work.tags.slice(0, 3).map(wt => (
-                    <Link key={wt.tagId} href={`/tac-pham?tag=${wt.tag.slug}`} className="tag-pill">{wt.tag.name}</Link>
-                  ))}
-                </div>
-              )}
-            </article>
-          ))}
-        </div>
-
-        {/* Pagination */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexWrap: 'wrap', gap: 6, padding: '24px 0 40px',
-          fontFamily: "'Inter', sans-serif", fontSize: 13,
+      {/* ── Minimal CTA below theater ── */}
+      <div style={{
+        textAlign: 'center',
+        padding: '48px 20px 64px',
+        borderTop: '1px solid var(--border)',
+      }}>
+        <p style={{
+          fontFamily: "var(--font-inter), 'Inter', sans-serif",
+          fontSize: 12,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+          marginBottom: 16,
         }}>
-          <span style={{ color: 'var(--text-muted)', width: '100%', textAlign: 'center' }}>
-            {total.toLocaleString('vi-VN')} tác phẩm · Trang {page}/{totalPages}
-          </span>
-          {page > 1 && <Link href={buildUrl(1)} className="pub-tab">« Đầu</Link>}
-          {page > 1 && <Link href={buildUrl(page - 1)} className="pub-tab">← Trước</Link>}
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
-            .map((p, i, arr) => (
-              <span key={p} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                {i > 0 && arr[i - 1] !== p - 1 && <span style={{ color: 'var(--text-muted)' }}>…</span>}
-                <Link href={buildUrl(p)} className="pub-tab"
-                  style={p === page ? { background: 'var(--accent)', color: '#fff', borderColor: 'transparent' } : {}}>
-                  {p}
-                </Link>
-              </span>
-            ))}
-          {page < totalPages && <Link href={buildUrl(page + 1)} className="pub-tab">Tiếp →</Link>}
-          {page < totalPages && <Link href={buildUrl(totalPages)} className="pub-tab">Cuối »</Link>}
-        </div>
-      </WorksSmartSearch>
+          {total.toLocaleString('vi-VN')} tác phẩm trong kho lưu trữ
+        </p>
+        <Link
+          href="/tac-pham"
+          style={{
+            display: 'inline-block',
+            fontFamily: "var(--font-noto-serif), 'Noto Serif', serif",
+            fontSize: 15,
+            color: 'var(--accent)',
+            textDecoration: 'none',
+            borderBottom: '1px solid rgba(196,164,109,0.3)',
+            paddingBottom: 2,
+            transition: 'border-color 0.2s',
+          }}
+        >
+          Xem toàn bộ tác phẩm →
+        </Link>
+      </div>
     </>
   )
 }

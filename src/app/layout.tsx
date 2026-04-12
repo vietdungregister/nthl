@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Inter, Playfair_Display, Lora } from 'next/font/google'
+import { Inter, Noto_Serif, Lora } from 'next/font/google'
 import './globals.css'
 
 // next/font tự inline CSS, preload, font-display:swap — không blocking render
@@ -9,10 +9,12 @@ const inter = Inter({
   display: 'swap',
 })
 
-const playfair = Playfair_Display({
+// Noto Serif: hỗ trợ tiếng Việt hoàn hảo, không bị vỡ chữ như Playfair Display
+const notoSerif = Noto_Serif({
   subsets: ['latin', 'vietnamese'],
-  variable: '--font-playfair',
+  variable: '--font-noto-serif',
   display: 'swap',
+  weight: ['400', '500', '600', '700'],
 })
 
 const lora = Lora({
@@ -32,7 +34,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="vi" className={`${inter.variable} ${playfair.variable} ${lora.variable}`}>
+    <html lang="vi" className={`${inter.variable} ${notoSerif.variable} ${lora.variable}`}>
       <body>{children}</body>
     </html>
   )

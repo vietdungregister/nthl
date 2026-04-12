@@ -1,11 +1,10 @@
 # Hệ Sinh Thái Văn Học Số — Nguyễn Thế Hoàng Linh
 
 > Thư viện chính chủ cho nhà thơ Nguyễn Thế Hoàng Linh — ~25,215 tác phẩm, AI-powered semantic search.
+<!-- AI Agents: BẮT BUỘC đọc CLAUDE.md trước khi làm bất kỳ task nào.
+     Đây là Functional Requirements Document (FRD) chứa toàn bộ kiến trúc, data model,
+     quy tắc code, và danh sách file quan trọng của dự án. Bỏ qua bước này sẽ dẫn đến lỗi. -->
 
-> [!IMPORTANT]
-> **AI Agents**: Trước khi làm bất kỳ task nào, **BẮT BUỘC** đọc [`CLAUDE.md`](CLAUDE.md) — đây là **Functional Requirements Document (FRD)** chứa toàn bộ kiến trúc, data model, quy tắc code, và danh sách file quan trọng của dự án. Bỏ qua bước này sẽ dẫn đến lỗi.
-
-**Live:** [http://188.166.177.93:3001](http://188.166.177.93:3001)
 
 ---
 
@@ -92,7 +91,6 @@ node scripts/health-check.js
 
 | File | Vai trò |
 |---|---|
-| `CLAUDE.md` | Product Requirements Document — source of truth |
 | `src/lib/cache.ts` | Server-side cache (genres, tags, books, collections) |
 | `src/lib/chunkAndEmbed.ts` | Auto chunk + embed khi tạo/sửa work qua CMS |
 | `src/app/api/ai-search/route.ts` | Hybrid vector + text search API |

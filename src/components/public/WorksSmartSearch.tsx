@@ -282,32 +282,6 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
 
     return (
         <div>
-            {/* ── Search bar ─────────────────────────────────────────── */}
-            <form onSubmit={handleSubmit} className="date-filter" style={{ flexWrap: 'wrap', gap: 8 }}>
-                {genre && <input type="hidden" name="genre" value={genre} />}
-                <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 220, display: 'flex' }}>
-                    <input
-                        type="text"
-                        value={query}
-                        onChange={e => setQuery(e.target.value)}
-                        placeholder=""
-                        className="date-filter__select"
-                        style={{ flex: 1, paddingRight: results ? 32 : undefined }}
-                    />
-                    {(results || (isVisual && defaultSearch)) && (
-                        <button type="button" onClick={clearSearch}
-                            style={{
-                                position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                                background: 'none', border: 'none', cursor: 'pointer',
-                                color: 'var(--text-muted)', fontSize: 16, lineHeight: 1,
-                            }}>✕</button>
-                    )}
-                </div>
-                <button type="submit" className="date-filter__btn" disabled={loading}>
-                    {loading ? '...' : (results || (isVisual && defaultSearch)) ? 'Tìm lại' : 'Tìm'}
-                </button>
-            </form>
-
             {/* ── Filter/Sort bar — LUÔN HIỂN THỊ ─────────────────────── */}
             <div className="works-filter-bar">
                 {/* Genre selector */}

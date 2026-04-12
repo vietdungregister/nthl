@@ -49,7 +49,7 @@ export const getCachedGenreCounts = unstable_cache(
 export const getCachedBooks = unstable_cache(
   () => prisma.book.findMany({
     orderBy: [{ order: 'asc' }, { year: 'desc' }],
-    select: { id: true, slug: true, title: true, publisher: true, year: true, coverImage: true },
+    select: { id: true, slug: true, title: true, publisher: true, year: true, coverImage: true, buyUrl: true },
   }),
   ['books'],
   { revalidate: 3600, tags: ['books'] } // 1h
@@ -63,4 +63,16 @@ export const getCachedCollections = unstable_cache(
   }),
   ['collections'],
   { revalidate: 3600, tags: ['collections'] } // 1h
+)
+
+/** 15 tác phẩm mới nhất — dùng cho sidebar recent list */
+export const getCachedRecentWorks = unstable_cache(
+  () => prisma.work.findMany({
+    where: { status: 'published', deletedAt: null },
+    orderBy: { publishedAt: 'desc' },
+    take: 15,
+    select: { id: true, title: true, slug: true },
+  }),
+  ['recent-works'],
+  { revalidate: 300, tags: ['recent-works'] } // 5 phút
 )
