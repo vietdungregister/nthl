@@ -197,7 +197,8 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
         if (isVisual) {
             navigateWithFilters({ q: query, y: filterYear, m: filterMonth })
         } else {
-            if (query.trim()) doSearch(query)
+            // Redirect to dedicated search page for unified search experience
+            if (query.trim()) router.push(`/tim-kiem?q=${encodeURIComponent(query.trim())}`)
             else clearSearch()
         }
     }

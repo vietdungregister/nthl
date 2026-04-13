@@ -89,7 +89,7 @@ export default function SidebarNav({ genres, recentWorks }: Props) {
   function handleSearch(e: FormEvent) {
     e.preventDefault()
     const q = searchRef.current?.value.trim()
-    if (q) router.push(`/tac-pham?search=${encodeURIComponent(q)}`)
+    if (q) router.push(`/tim-kiem?q=${encodeURIComponent(q)}`)
   }
 
   const allGenres = [
