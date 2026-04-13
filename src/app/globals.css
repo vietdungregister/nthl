@@ -650,7 +650,7 @@ img {
   font-weight: 700;
   font-size: 24px;
   color: var(--text-primary);
-  text-align: center;
+  text-align: left;
   margin-bottom: 24px;
   padding-top: 0;
   line-height: 1.4;
