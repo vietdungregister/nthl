@@ -759,7 +759,7 @@ img {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 80px 24px 60px;
+  padding: 24px 24px 60px;
 }
 
 .theater__content {
