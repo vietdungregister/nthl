@@ -25,7 +25,8 @@ export default async function HomePage() {
         AND "deletedAt" IS NULL
         AND title IS NOT NULL AND title != ''
         AND content IS NOT NULL AND LENGTH(content) > 50
-        AND genre IN ('poem', 'essay', 'short_story', 'memoir', 'stt')
+        AND LENGTH(content) < 1500
+        AND genre = 'poem'
       ORDER BY RANDOM()
       LIMIT 1
     `.catch(() => [] as TheaterWork[]),

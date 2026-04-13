@@ -19,7 +19,8 @@ interface Props {
 }
 
 const MAX_SHORT_LINES = 15   // thơ ngắn: hiện full
-const MAX_SHORT_CHARS = 500  // văn xuôi ngắn: hiện full
+const MAX_SHORT_CHARS = 360  // văn xuôi ngắn: hiện full (tighter)
+const MAX_EXPAND_CHARS = 700 // giới hạn khi "Đọc tiếp" — tránh overflow
 
 function formatDate(dateStr: string): string {
   // "2004-03-05" → "05.03.04"
@@ -51,7 +52,9 @@ export default function PoemTheater({ initialWork }: Props) {
   const showFull = isShort || isExpanded
 
   const rawDisplay = showFull
-    ? work.content
+    ? isPoem
+      ? work.content
+      : work.content.slice(0, MAX_EXPAND_CHARS).trimEnd() // cap expanded prose
     : isPoem
       ? work.content.split('\n').filter(l => l.trim()).slice(0, 8).join('\n')
       : work.content.slice(0, MAX_SHORT_CHARS).trimEnd()

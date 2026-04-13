@@ -5,7 +5,7 @@ import { cleanTitle, fixSplitVietnamese } from '@/lib/utils'
 // Không cache API này — mỗi request cần bài ngẫu nhiên khác nhau
 export const dynamic = 'force-dynamic'
 
-const TEXT_GENRES = ['poem', 'essay', 'short_story', 'memoir', 'stt']
+const TEXT_GENRES = ['poem']  // chỉ thơ cho theater
 
 /** Strip title từ đầu content nếu content bắt đầu bằng title */
 function stripTitle(content: string, title: string): string {
@@ -22,41 +22,23 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const excludeId = searchParams.get('excludeId')
 
-    // Count để random offset — tránh ORDER BY RANDOM() trên table lớn
-    const count = await prisma.work.count({
-      where: {
-        status: 'published',
-        deletedAt: null,
-        genre: { in: TEXT_GENRES },
-        content: { not: '' },
-        ...(excludeId ? { id: { not: excludeId } } : {}),
-      },
-    })
+    type WorkRow = { id: string; title: string; slug: string; genre: string; content: string; writtenAt: Date | null }
 
-    if (count === 0) {
-      return NextResponse.json({ error: 'No works found' }, { status: 404 })
-    }
-
-    const skip = Math.floor(Math.random() * count)
-
-    const work = await prisma.work.findFirst({
-      where: {
-        status: 'published',
-        deletedAt: null,
-        genre: { in: TEXT_GENRES },
-        content: { not: '' },
-        ...(excludeId ? { id: { not: excludeId } } : {}),
-      },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        genre: true,
-        content: true,
-        writtenAt: true,
-      },
-      skip,
-    })
+    // Single query với RANDOM() — OK vì đã lọc chặt (poem/stt < 1500 chars)
+    const excludeClause = excludeId ? `AND id != '${excludeId.replace(/'/g, "''")}'` : ''
+    const rows = await prisma.$queryRawUnsafe<WorkRow[]>(`
+      SELECT id, title, slug, genre, LEFT(content, 8000) AS content, "writtenAt"
+      FROM "Work"
+      WHERE status = 'published'
+        AND "deletedAt" IS NULL
+        AND genre = 'poem'
+        AND content IS NOT NULL AND LENGTH(content) > 50
+        AND LENGTH(content) < 1500
+        ${excludeClause}
+      ORDER BY RANDOM()
+      LIMIT 1
+    `)
+    const work = rows[0] ?? null
 
     if (!work) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
