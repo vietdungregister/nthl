@@ -15,6 +15,8 @@ interface WorkResult {
     matchedLines: string[]
 }
 
+type SearchMode = 'keyword' | 'semantic'
+
 const GENRE_LABELS: Record<string, string> = {
     poem: 'Thơ',
     stt: 'Status',
@@ -58,6 +60,7 @@ export default function SearchClient() {
     const [query, setQuery] = useState(initialQuery)
     const [results, setResults] = useState<WorkResult[]>([])
     const [loading, setLoading] = useState(false)
+    const [searchMode, setSearchMode] = useState<SearchMode>('keyword')
     const [randomWork, setRandomWork] = useState<WorkResult | null>(null)
     const [randomLoading, setRandomLoading] = useState(false)
     const [searched, setSearched] = useState(false)
@@ -68,10 +71,31 @@ export default function SearchClient() {
         if (!trimmed) return
         setLoading(true)
         setSearched(true)
+        setSearchMode('keyword')
         try {
+            // Step 1: Keyword search
             const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
             const data = await res.json()
-            setResults(data.works || [])
+            const keywordResults = data.works || []
+
+            if (keywordResults.length > 0) {
+                setResults(keywordResults)
+                setSearchMode('keyword')
+            } else {
+                // Step 2: AI semantic fallback khi keyword search không ra kết quả
+                setSearchMode('semantic')
+                try {
+                    const aiRes = await fetch('/api/ai-search', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query: trimmed }),
+                    })
+                    const aiData = await aiRes.json()
+                    setResults(aiData.works || [])
+                } catch {
+                    setResults([])
+                }
+            }
         } catch {
             setResults([])
         } finally {
@@ -199,10 +223,19 @@ export default function SearchClient() {
             {/* Results count */}
             {searched && !loading && (
                 <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 14 }}>
-                    {results.length > 0
-                        ? <>Tìm thấy <strong style={{ color: 'var(--text-primary)' }}>{results.length}</strong> kết quả cho &ldquo;{query}&rdquo;</>
-                        : <>Không tìm thấy kết quả nào cho &ldquo;{query}&rdquo;</>
-                    }
+                    {results.length > 0 && searchMode === 'keyword' && (
+                        <>Tìm thấy <strong style={{ color: 'var(--text-primary)' }}>{results.length}</strong> kết quả cho &ldquo;{query}&rdquo;</>
+                    )}
+                    {results.length > 0 && searchMode === 'semantic' && (
+                        <span>
+                            Không có kết quả chính xác — hiển thị
+                            {' '}<strong style={{ color: 'var(--text-primary)' }}>{results.length}</strong>
+                            {' '}kết quả tương tự theo ngữ nghĩa 🔮
+                        </span>
+                    )}
+                    {results.length === 0 && (
+                        <>Không tìm thấy kết quả nào cho &ldquo;{query}&rdquo;</>
+                    )}
                 </div>
             )}
 
