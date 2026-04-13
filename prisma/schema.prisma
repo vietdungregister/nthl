@@ -64,6 +64,9 @@ model Work {
   fbTimestamp    Int?                    // unix timestamp gốc
   autoClassified Boolean  @default(false) // do AI phân loại tự động
 
+  // Full-text search vector (auto-managed by DB trigger)
+  searchVector   Unsupported("tsvector")?
+
   // Performance indexes cho các query phổ biến
   // [status, deletedAt, publishedAt] → filter published + sort theo ngày (trang chủ, danh sách)
   @@index([status, deletedAt, publishedAt(sort: Desc)])
@@ -76,6 +79,7 @@ model Work {
   // [deletedAt, status] → dashboard COUNT queries
   @@index([deletedAt, status])
 }
+
 
 model Comment {
   id        String   @id @default(uuid())
