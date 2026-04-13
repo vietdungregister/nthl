@@ -83,28 +83,12 @@ export default async function WorkDetailPage({ params }: Props) {
                     </div>
                 )}
 
-                {/* Content — skip first line if it duplicates the title */}
-                {work.content && (() => {
-                    let displayContent = work.content
-                    const firstLine = displayContent.split('\n').find(l => l.trim())?.trim()
-                    if (firstLine && work.title && firstLine.toLowerCase() === work.title.trim().toLowerCase()) {
-                        // Remove the first non-empty line (and any leading blank lines)
-                        const lines = displayContent.split('\n')
-                        let found = false
-                        displayContent = lines.filter(l => {
-                            if (!found && l.trim().toLowerCase() === work.title.trim().toLowerCase()) {
-                                found = true
-                                return false
-                            }
-                            return true
-                        }).join('\n').replace(/^\n+/, '')
-                    }
-                    return (
-                        <div className={contentClass} style={{ textAlign: 'left' }}>
-                            {cleanContent(displayContent)}
-                        </div>
-                    )
-                })()}
+                {/* Content */}
+                {work.content && (
+                    <div className={contentClass} style={{ textAlign: 'left' }}>
+                        {cleanContent(work.content)}
+                    </div>
+                )}
             </div>
 
             {/* Bản dịch */}
