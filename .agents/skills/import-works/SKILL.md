@@ -17,11 +17,19 @@ Nhận file JSON tác phẩm mới (từ Facebook export hoặc do tác giả cu
 hệ thống NTHL với **chất lượng production-ready**: dữ liệu sạch, phân loại thể loại đúng,
 không trùng lặp, search hoạt động ngay lập tức (bao gồm cả keyword và AI semantic search).
 
-## Khi nào dùng
+## Khi nào dùng — Decision Matrix
 
-- Tác giả gửi thêm file Facebook export JSON mới
-- Cần import batch tác phẩm từ file JSON bất kỳ
-- Cần re-import/re-clean toàn bộ dữ liệu
+> **Quy tắc đơn giản:** Ít bài → CMS. Nhiều bài / có file JSON → Pipeline này.
+
+| Tình huống | Cách làm | Tự động? |
+|---|---|---|
+| **1–5 bài** (tác giả đọc cho gõ, hoặc copy từ FB) | **CMS web** tại `/cms/works` → Tạo mới | ✅ Embed tự động |
+| **File JSON nhỏ** (10–100 bài, tác giả gửi) | **Pipeline** Phase 1→4→5→7→8 (skip Phase 6) | ❌ Chạy script |
+| **Facebook export mới** (hàng nghìn bài) | **Pipeline** đầy đủ 9 phases | ❌ Chạy script |
+| **Re-clean toàn bộ** (fix lỗi dữ liệu) | `clean-data.py` + `apply-clean-to-db.py` | ❌ Chạy script |
+
+**Dùng CMS khi:** số lượng < 10 bài, hoặc tác giả muốn kiểm duyệt ngay trước khi publish.
+**Dùng pipeline khi:** có file JSON sẵn, và/hoặc số lượng > 10 bài.
 
 ## ⚠️ Bẫy (Pitfalls) đã rút kinh nghiệm
 
