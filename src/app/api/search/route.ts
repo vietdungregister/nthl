@@ -80,14 +80,18 @@ async function progressiveSearch(query: string, genre?: string): Promise<WorkRow
         allResults.push(...rows)
     }
 
-    // Sort: tier ưu tiên hơn (tier nhỏ = match dài hơn), nhưng
-    // bài sim=0 ở tier tốt hơn không nên vượt bài sim cao ở tier thấp hơn.
-    // Dùng composite: tier_boost * 10 + rank
-    // tier 1 (4 từ) = boost 4, tier 2 (3 từ) = boost 3...
+    // Composite score: tier boost (cụm dài = ưu tiên hơn) + similarity
+    // boost nhỏ (=2) để bài sim cao ở tier thấp vẫn vượt được bài sim=0 ở tier cao
+    // Ví dụ: tier1 sim=0 → 2+0=2.0 < tier2 sim=0.75 → 1+0.75=1.75... cần điều chỉnh
+    // Dùng: score = tier_boost × 1.5 + sim
+    // tier1 sim=0 → 1.5+0=1.5, tier2 sim=0.75 → 1.0+0.75=1.75 ✓ tier2 thắng
+    // tier1 sim=0.84 → 1.5+0.84=2.34 ✓ tier1 thắng tier2 sim=0.75 (1.75)
     const maxTier = words.length
     allResults.sort((a, b) => {
-        const scoreA = (maxTier - Number(a.tier) + 1) * 10 + Number(a.rank)
-        const scoreB = (maxTier - Number(b.tier) + 1) * 10 + Number(b.rank)
+        const tierBoostA = (maxTier - Number(a.tier) + 1) / maxTier
+        const tierBoostB = (maxTier - Number(b.tier) + 1) / maxTier
+        const scoreA = tierBoostA * 1.5 + Number(a.rank)
+        const scoreB = tierBoostB * 1.5 + Number(b.rank)
         return scoreB - scoreA
     })
 
