@@ -259,13 +259,6 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
         resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
 
-    const selectStyle: React.CSSProperties = {
-        padding: '7px 10px', borderRadius: 8, fontSize: 13,
-        border: '1px solid var(--border)', background: 'var(--card-bg)',
-        color: 'var(--text-secondary)', cursor: 'pointer',
-        outline: 'none', transition: 'border-color 0.15s',
-    }
-
     const hasActiveFilter = filterYear || filterMonth || (defaultSearch && defaultSearch.trim())
 
     // Build genre options from dbGenres prop (server-side data)
@@ -289,7 +282,7 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
                 <select
                     value={filterGenre}
                     onChange={e => handleGenreChange(e.target.value)}
-                    style={selectStyle}
+                    className="filter-select"
                     aria-label="Lọc thể loại"
                 >
                     <option value="">Tất cả thể loại</option>
@@ -302,7 +295,7 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
                 <select
                     value={filterSort}
                     onChange={e => handleSortChange(e.target.value)}
-                    style={selectStyle}
+                    className="filter-select"
                     aria-label="Sắp xếp"
                 >
                     <option value="newest">Mới nhất</option>
@@ -313,7 +306,7 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
                 {/* Year */}
                 <select value={filterYear}
                     onChange={e => handleYearChange(e.target.value)}
-                    style={selectStyle}
+                    className="filter-select"
                     aria-label="Lọc năm"
                 >
                     <option value=''>Tất cả năm</option>
@@ -325,7 +318,7 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
                 {/* Month */}
                 <select value={filterMonth}
                     onChange={e => handleMonthChange(e.target.value)}
-                    style={selectStyle}
+                    className="filter-select"
                     aria-label="Lọc tháng"
                 >
                     <option value=''>Tháng</option>
@@ -338,7 +331,7 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
                 {results !== null && (
                     <select value={filterDay}
                         onChange={e => { setFilterDay(e.target.value); setPage(1) }}
-                        style={selectStyle}
+                        className="filter-select"
                         aria-label="Lọc ngày"
                     >
                         <option value=''>Ngày</option>
@@ -361,7 +354,8 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
                             setQuery('')
                             router.push('/tac-pham')
                         }}
-                        style={{ ...selectStyle, color: 'var(--accent)', borderColor: 'var(--accent)', fontWeight: 500 }}
+                        className="filter-select"
+                        style={{ color: 'var(--accent)', borderColor: 'rgba(196,164,109,0.4)', fontWeight: 500 }}
                     >
                         ✕ Xóa lọc
                     </button>
@@ -369,7 +363,7 @@ export default function WorksSmartSearch({ children, defaultSearch, genre, month
 
                 {/* AI search result count */}
                 {results !== null && (
-                    <span style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--text-muted)', fontFamily: "'Inter', sans-serif" }}>
+                    <span className="meta" style={{ marginLeft: 'auto', fontWeight: 400, textTransform: 'none', letterSpacing: 0, fontSize: 13 }}>
                         Tìm thấy <strong style={{ color: 'var(--accent)' }}>{filteredResults.length}</strong> tác phẩm
                         {totalPages > 1 && <> · Trang {page}/{totalPages}</>}
                     </span>
