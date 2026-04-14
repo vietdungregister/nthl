@@ -868,6 +868,113 @@ img {
   color: var(--text-primary);
 }
 
+.reading-nav__next { text-align: right; }
+
+/* Reading page — section blocks */
+.reading-translations {
+  margin-top: 28px;
+  border-top: 1px solid var(--border);
+  padding-top: 24px;
+}
+.reading-translations__title {
+  font-family: var(--font-noto-serif), 'Noto Serif', serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+.reading-translations__item { margin-bottom: 24px; }
+.reading-translations__note {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 6px 0 8px;
+}
+.reading-translations__content {
+  border-left: 3px solid var(--border);
+  padding-left: 16px;
+}
+
+.reading-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.reading-collections {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-family: var(--font-inter), 'Inter', sans-serif;
+}
+.reading-collections__link {
+  color: var(--text-secondary);
+  text-decoration: underline;
+}
+.reading-collections__link:hover { color: var(--accent); }
+
+.reading-share {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.reading-comments { margin-top: 32px; }
+
+.reading-related {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.reading-related__title {
+  font-family: var(--font-noto-serif), 'Noto Serif', serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+.reading-related__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.reading-card__video {
+  width: 100%;
+  max-height: 600px;
+  border-radius: 8px;
+}
+.reading-card__image {
+  width: 100% !important;
+  height: auto !important;
+  max-height: 600px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.reading-card__media { margin-bottom: 24px; }
+
+/* Reading poem — match Theater font size */
+.reading-card__poem {
+  font-family: var(--font-noto-serif), 'Noto Serif', serif;
+  font-size: 18px;      /* was 17px — match Theater */
+  line-height: 1.8;     /* was 1.75 — match Theater */
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  text-align: left;
+}
+
+/* Reading prose — match Theater font size */
+.reading-card__prose {
+  font-family: var(--font-noto-serif), 'Noto Serif', serif;
+  font-size: 18px;      /* was 17px */
+  line-height: 1.8;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  text-align: left;
+}
+
 /* ===========================
    PUBLIC FOOTER
    =========================== */

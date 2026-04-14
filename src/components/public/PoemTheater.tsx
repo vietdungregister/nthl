@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { useSwipeable } from 'react-swipeable'
 
 interface RandomWork {
   id: string
@@ -40,10 +41,10 @@ function renderPoemLines(content: string) {
 
 export default function PoemTheater({ initialWork }: Props) {
   const [work, setWork] = useState<RandomWork>(initialWork)
+  const [history, setHistory] = useState<RandomWork[]>([])  // history for back navigation
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const [phase, setPhase] = useState<'in' | 'out' | 'idle'>('idle')
-  const feedRef = useRef<HTMLDivElement | null>(null)
 
   const isPoem = work.genre === 'poem' || work.genre === 'stt'
   const isShort = isPoem
@@ -54,28 +55,30 @@ export default function PoemTheater({ initialWork }: Props) {
   const rawDisplay = showFull
     ? isPoem
       ? work.content
-      : work.content.slice(0, MAX_EXPAND_CHARS).trimEnd() // cap expanded prose
+      : work.content.slice(0, MAX_EXPAND_CHARS).trimEnd()
     : isPoem
       ? work.content.split('\n').filter(l => l.trim()).slice(0, 8).join('\n')
       : work.content.slice(0, MAX_SHORT_CHARS).trimEnd()
 
-  // Content already cleaned server-side for initialWork;
-  // for subsequent fetches (/api/random-work) clean here
   const displayContent = rawDisplay
   const displayTitle = work.title
 
+  // Fetch next random work, saving current to history
   const fetchNext = useCallback(async () => {
     if (isTransitioning) return
     setIsTransitioning(true)
     setIsExpanded(false)
     setPhase('out')
 
+    const currentWork = work  // capture before state change
+
     await new Promise(r => setTimeout(r, 350))
 
     try {
-      const res = await fetch(`/api/random-work?excludeId=${work.id}`)
+      const res = await fetch(`/api/random-work?excludeId=${currentWork.id}`)
       if (res.ok) {
         const data = await res.json()
+        setHistory(prev => [...prev, currentWork])  // push current to history
         setWork(data)
       }
     } catch (e) {
@@ -86,7 +89,26 @@ export default function PoemTheater({ initialWork }: Props) {
     await new Promise(r => setTimeout(r, 350))
     setPhase('idle')
     setIsTransitioning(false)
-  }, [isTransitioning, work.id])
+  }, [isTransitioning, work])
+
+  // Go back to previous work in history
+  const goBack = useCallback(async () => {
+    if (isTransitioning || history.length === 0) return
+    setIsTransitioning(true)
+    setIsExpanded(false)
+    setPhase('out')
+
+    await new Promise(r => setTimeout(r, 350))
+
+    const prev = history[history.length - 1]
+    setHistory(h => h.slice(0, -1))
+    setWork(prev)
+
+    setPhase('in')
+    await new Promise(r => setTimeout(r, 350))
+    setPhase('idle')
+    setIsTransitioning(false)
+  }, [isTransitioning, history])
 
   const scrollToFeed = useCallback(() => {
     const feedSection = document.getElementById('theater-feed')
@@ -101,9 +123,13 @@ export default function PoemTheater({ initialWork }: Props) {
       const tag = (e.target as HTMLElement)?.tagName
       if (/INPUT|TEXTAREA|SELECT/.test(tag)) return
 
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === ' ') {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
         e.preventDefault()
         fetchNext()
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        goBack()
       }
       if (e.key === 'ArrowDown') {
         e.preventDefault()
@@ -112,7 +138,16 @@ export default function PoemTheater({ initialWork }: Props) {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [fetchNext, scrollToFeed])
+  }, [fetchNext, goBack, scrollToFeed])
+
+  // Touch swipe handlers
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: () => fetchNext(),   // swipe left → next
+    onSwipedRight: () => goBack(),     // swipe right → back
+    preventScrollOnSwipe: true,
+    trackMouse: false,                 // touch only, not mouse
+    delta: 50,                         // min swipe distance
+  })
 
   const contentClass = [
     'theater__content',
@@ -120,8 +155,14 @@ export default function PoemTheater({ initialWork }: Props) {
     phase === 'in' ? 'theater__content--in' : '',
   ].filter(Boolean).join(' ')
 
+  const canGoBack = history.length > 0
+
   return (
-    <section className="theater" aria-label="Tác phẩm ngẫu nhiên">
+    <section
+      className="theater"
+      aria-label="Tác phẩm ngẫu nhiên"
+      {...swipeHandlers}  // attach swipe to whole theater section
+    >
       <div className={contentClass}>
         {/* Author name — always visible */}
         <p className="theater__author">Nguyễn Thế Hoàng Linh</p>
@@ -165,11 +206,12 @@ export default function PoemTheater({ initialWork }: Props) {
         <div className="theater__nav">
           <button
             className="theater__nav-btn"
-            onClick={fetchNext}
-            disabled={isTransitioning}
-            aria-label="Bài khác"
+            onClick={goBack}
+            disabled={isTransitioning || !canGoBack}
+            aria-label="Bài trước"
+            style={{ opacity: canGoBack ? 1 : 0.3 }}
           >
-            ← Bài khác
+            ← Quay lại
           </button>
           <Link href="/tac-pham" className="theater__nav-btn theater__nav-btn--center">
             Toàn bộ tác phẩm ↗
@@ -178,12 +220,18 @@ export default function PoemTheater({ initialWork }: Props) {
             className="theater__nav-btn"
             onClick={fetchNext}
             disabled={isTransitioning}
-            aria-label="Bài khác"
+            aria-label="Bài tiếp theo"
           >
             Bài khác →
           </button>
         </div>
 
+        {/* Mobile swipe hint — shown only if no history yet */}
+        {!canGoBack && (
+          <p className="theater__scroll-hint-text" style={{ marginTop: 16 }}>
+            Vuốt ← → để đổi bài · Chạm để đọc tiếp
+          </p>
+        )}
 
       </div>
     </section>

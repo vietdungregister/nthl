@@ -28,7 +28,6 @@ export default async function WorkDetailPage({ params }: Props) {
     })
     if (!work) notFound()
 
-    // View count update chạy SAU khi response đã trả về user — không block render
     after(async () => {
         await prisma.work.update({ where: { id: work.id }, data: { viewCount: { increment: 1 } } })
     })
@@ -47,7 +46,6 @@ export default async function WorkDetailPage({ params }: Props) {
     const isVisualGenre = VISUAL_GENRES.includes(work.genre)
     const isVideo = work.genre === 'video' || (work.coverImageUrl && work.coverImageUrl.match(/\.(mp4|webm|ogg|mov)$/i))
 
-    // Detect poem vs prose by content, not just genre
     const isPoem = !isVisualGenre && (work.genre === 'poem' || work.genre === 'stt')
     const lines = work.content.split('\n').filter(l => l.trim())
     const avgLen = lines.length ? lines.reduce((s, l) => s + l.length, 0) / lines.length : 0
@@ -72,44 +70,36 @@ export default async function WorkDetailPage({ params }: Props) {
                     <div className="reading-card__title">{cleanTitle(work.title)}</div>
                 )}
 
-                {/* Display image/video for visual genres */}
                 {isVisualGenre && work.coverImageUrl && (
                     <div className="reading-card__media">
                         {isVideo ? (
-                            <video src={work.coverImageUrl} controls style={{ width: '100%', maxHeight: 600, borderRadius: 8 }} />
+                            <video src={work.coverImageUrl} controls className="reading-card__video" />
                         ) : (
-                            <Image src={work.coverImageUrl} alt={work.title} width={900} height={600} style={{ width: '100%', maxHeight: 600, objectFit: 'contain', borderRadius: 8 }} priority />
+                            <Image src={work.coverImageUrl} alt={work.title} width={900} height={600} className="reading-card__image" priority />
                         )}
                     </div>
                 )}
 
-                {/* Content */}
                 {work.content && (
-                    <div className={contentClass} style={{ textAlign: 'left' }}>
+                    <div className={contentClass}>
                         {cleanContent(work.content)}
                     </div>
                 )}
             </div>
 
-            {/* Bản dịch */}
+            {/* Translations */}
             {work.translations && (() => {
                 try {
                     const trs: Array<{ lang: string; title?: string; content: string; note?: string }> = JSON.parse(work.translations)
                     if (!trs || trs.length === 0) return null
                     return (
-                        <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 24 }}>
-                            <h2 style={{ fontFamily: "var(--font-noto-serif), 'Noto Serif', serif", fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>
-                                Bản dịch
-                            </h2>
+                        <div className="reading-translations">
+                            <h2 className="reading-translations__title">Bản dịch</h2>
                             {trs.map((tr, i) => (
-                                <div key={i} style={{ marginBottom: 28 }}>
-                                    <div style={{ fontSize: 13, fontFamily: "'Inter', sans-serif", color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600 }}>
-                                        {tr.lang}{tr.title && ` — ${tr.title}`}
-                                    </div>
-                                    {tr.note && (
-                                        <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 8 }}>{tr.note}</div>
-                                    )}
-                                    <div className="reading-card__prose" style={{ borderLeft: '3px solid var(--border)', paddingLeft: 16, textAlign: 'left' }}>
+                                <div key={i} className="reading-translations__item">
+                                    <div className="meta">{tr.lang}{tr.title && ` — ${tr.title}`}</div>
+                                    {tr.note && <div className="reading-translations__note">{tr.note}</div>}
+                                    <div className="reading-card__prose reading-translations__content">
                                         {tr.content}
                                     </div>
                                 </div>
@@ -121,7 +111,7 @@ export default async function WorkDetailPage({ params }: Props) {
 
             {/* Tags */}
             {work.tags.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 20 }}>
+                <div className="reading-tags">
                     {work.tags.map(wt => (
                         <Link key={wt.tagId} href={`/tag/${wt.tag.slug}`} className="tag-pill">{wt.tag.name}</Link>
                     ))}
@@ -130,11 +120,11 @@ export default async function WorkDetailPage({ params }: Props) {
 
             {/* Collections */}
             {work.collections.length > 0 && (
-                <div style={{ marginTop: 12, color: 'var(--text-muted)', fontSize: 13 }}>
+                <div className="reading-collections">
                     Bộ sưu tập:{' '}
                     {work.collections.map((wc, i) => (
                         <span key={wc.collectionId}>
-                            <Link href={`/bo-suu-tap/${wc.collection.slug}`} style={{ color: 'var(--text-secondary)', textDecoration: 'underline' }}>
+                            <Link href={`/bo-suu-tap/${wc.collection.slug}`} className="reading-collections__link">
                                 {wc.collection.title}
                             </Link>
                             {i < work.collections.length - 1 && ', '}
@@ -144,10 +134,10 @@ export default async function WorkDetailPage({ params }: Props) {
             )}
 
             {/* Share */}
-            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            <div className="reading-share">
                 <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
-                    target="_blank" rel="noopener noreferrer" className="tag-pill" style={{ fontSize: 13 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    target="_blank" rel="noopener noreferrer" className="btn btn--ghost btn--sm btn--pill">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                         <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
                     </svg>
                     Chia sẻ Facebook
@@ -155,23 +145,23 @@ export default async function WorkDetailPage({ params }: Props) {
             </div>
 
             {/* Comments */}
-            <div style={{ marginTop: 32 }}>
+            <div className="reading-comments">
                 <LazyCommentSection workId={work.id} expanded />
             </div>
 
             {/* Prev / Next */}
             <div className="reading-nav">
                 {prev ? <Link href={`/tac-pham/${prev.slug}`}>← {prev.title}</Link> : <span style={{ flex: 1 }} />}
-                {next ? <Link href={`/tac-pham/${next.slug}`} style={{ textAlign: 'right' }}>{next.title} →</Link> : <span style={{ flex: 1 }} />}
+                {next ? <Link href={`/tac-pham/${next.slug}`} className="reading-nav__next">{next.title} →</Link> : <span style={{ flex: 1 }} />}
             </div>
 
             {/* Related */}
             {related.length > 0 && (
-                <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid var(--border)' }}>
-                    <h3 style={{ fontFamily: "var(--font-noto-serif), 'Noto Serif', serif", fontSize: 18, color: 'var(--text-primary)', marginBottom: 16 }}>Tác phẩm liên quan</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+                <div className="reading-related">
+                    <h3 className="reading-related__title">Tác phẩm liên quan</h3>
+                    <div className="reading-related__grid">
                         {related.map(r => (
-                            <Link key={r.id} href={`/tac-pham/${r.slug}`} className="poem-card" style={{ minHeight: 'auto' }}>
+                            <Link key={r.id} href={`/tac-pham/${r.slug}`} className="poem-card">
                                 <div className="poem-card__title">{cleanTitle(r.title)}</div>
                                 <div className="poem-card__excerpt">{r.excerpt ?? ''}</div>
                             </Link>
