@@ -80,6 +80,17 @@ async function progressiveSearch(query: string, genre?: string): Promise<WorkRow
         allResults.push(...rows)
     }
 
+    // Sort: tier ưu tiên hơn (tier nhỏ = match dài hơn), nhưng
+    // bài sim=0 ở tier tốt hơn không nên vượt bài sim cao ở tier thấp hơn.
+    // Dùng composite: tier_boost * 10 + rank
+    // tier 1 (4 từ) = boost 4, tier 2 (3 từ) = boost 3...
+    const maxTier = words.length
+    allResults.sort((a, b) => {
+        const scoreA = (maxTier - Number(a.tier) + 1) * 10 + Number(a.rank)
+        const scoreB = (maxTier - Number(b.tier) + 1) * 10 + Number(b.rank)
+        return scoreB - scoreA
+    })
+
     // ── Fuzzy fallback nếu ít kết quả (sai chính tả, thiếu dấu) ─────────────
     if (allResults.length < 5) {
         const excludeList = foundIds.size > 0
