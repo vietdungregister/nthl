@@ -1,0 +1,20 @@
+[
+  {
+    "title": "Một bài thơ",
+    "content": "Một bài thơ\ngiống bộ phim êm đềm\ntôi với em\nngồi xem",
+    "genre": "poem",
+    "publishedAt": "2026-01-15T10:30:00Z"
+  },
+  {
+    "title": "Ghi chú buổi chiều",
+    "content": "Hôm nay trời đẹp quá. Ngồi quán cà phê viết mấy dòng, nghĩ về cuộc đời.",
+    "genre": "stt",
+    "publishedAt": "2026-02-20T14:00:00Z"
+  },
+  {
+    "title": "",
+    "content": "nắng\nchiều nay\nrơi nhẹ\nqua vai em\nmùa đông\nxa rồi",
+    "genre": "",
+    "publishedAt": null
+  }
+]

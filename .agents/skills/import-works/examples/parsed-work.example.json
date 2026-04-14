@@ -1,0 +1,14 @@
+{
+  "id": "bdfde23d-6546-45af-a49e-dc22429e89e6",
+  "title": "Một bài thơ",
+  "slug": "mot-bai-tho",
+  "genre": "poem",
+  "content": "Một bài thơ\ngiống bộ phim êm đềm\ntôi với em\nngồi xem",
+  "excerpt": "Một bài thơ giống bộ phim êm đềm tôi với em ngồi xem",
+  "status": "published",
+  "publishedAt": "2026-01-15T10:30:00.000Z",
+  "source": "custom",
+  "deletedAt": null,
+  "deleteNote": null,
+  "needsGenreClassification": false
+}
