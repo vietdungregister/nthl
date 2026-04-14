@@ -52,6 +52,7 @@ export default function SidebarNav({ genres, recentWorks }: Props) {
           placeholder="Tìm kiếm tác phẩm..."
           className="search-box"
           aria-label="Tìm kiếm tác phẩm"
+          suppressHydrationWarning
         />
       </form>
 

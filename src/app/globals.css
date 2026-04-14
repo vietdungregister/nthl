@@ -8,7 +8,7 @@
   --bg: #0C0B0A;               /* main background */
   --bg-primary: #0C0B0A;       /* backward compat alias */
   --bg-secondary: #121212;     /* slightly lifted surfaces */
-  --panel: #0C0B0A;            /* sidebar panels */
+  --panel: #111110;            /* sidebar panels — slightly lighter than bg for separation */
 
   /* Surfaces — mini-app inspired */
   --surface: #121212;          /* card / list item background */
@@ -37,8 +37,8 @@
   --link-hover: #D4B87D;
 
   /* Border — more subtle like mini-app */
-  --border: rgba(255, 255, 255, 0.06);      /* was 0.08 */
-  --border-light: rgba(255, 255, 255, 0.03); /* was 0.04 */
+  --border: rgba(255, 255, 255, 0.09);      /* was 0.06 — more visible */
+  --border-light: rgba(255, 255, 255, 0.05); /* was 0.03 */
 
   /* Input/button surface — mini-app style */
   --input-bg: #151515;
@@ -466,17 +466,17 @@ img {
    WORKS SIDEBAR
    =========================== */
 .works-sidebar {
-  width: clamp(220px, 22vw, 320px); /* responsive: 220px min, 320px max */
+  width: 240px;
   flex-shrink: 0;
   position: sticky;
   top: 60px;
   height: calc(100vh - 60px);
   overflow-y: auto;
-  padding: 20px 18px;
+  padding: 20px 16px;
   padding-bottom: 48px;
-  background: var(--panel); /* flush dark background */
+  background: var(--panel);
   border-right: 1px solid var(--border);
-  border-radius: 0; /* edge-to-edge, no rounded corners */
+  border-radius: 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -1534,7 +1534,7 @@ img {
   padding: 0;
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);  /* 3 cols fits 240px sidebar reliably */
   gap: 5px;
 }
 
@@ -1918,11 +1918,14 @@ img {
    sidebar-left | feed | sidebar-right
    max-width + padding matches pub-header-inner exactly
    =========================== */
-/* Full-width layout — sidebars flush to viewport edges */
+/* Full-width layout with contained center content */
 .page-layout {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 0 24px;
   display: flex;
+  gap: 24px;
   align-items: flex-start;
-  /* NO max-width, NO padding — sidebars go edge-to-edge */
 }
 
 /* Legacy aliases */
@@ -1940,7 +1943,6 @@ img {
 .home-feed {
   flex: 1;
   min-width: 0;
-  padding: 0 32px; /* breathing room between sidebars and content */
 }
 
 .page-feed>.feed-layout,
@@ -1953,13 +1955,13 @@ img {
    RIGHT SIDEBAR — Collections
    =========================== */
 .home-right-sidebar {
-  width: clamp(200px, 20vw, 280px); /* responsive width */
+  width: 240px;
   flex-shrink: 0;
   position: sticky;
   top: 60px;
   height: calc(100vh - 60px);
   overflow-y: auto;
-  padding: 20px 18px 48px;
+  padding: 20px 16px 48px;
   background: var(--panel);
   border-left: 1px solid var(--border);
   scrollbar-width: none;
