@@ -466,17 +466,17 @@ img {
    WORKS SIDEBAR
    =========================== */
 .works-sidebar {
-  width: 240px;
+  width: clamp(220px, 22vw, 320px); /* responsive: 220px min, 320px max */
   flex-shrink: 0;
   position: sticky;
   top: 60px;
   height: calc(100vh - 60px);
   overflow-y: auto;
-  padding: 16px 12px;
+  padding: 20px 18px;
   padding-bottom: 48px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
-  border-radius: 12px;
-  /* Hide scrollbar but keep scrollable */
+  background: var(--panel); /* flush dark background */
+  border-right: 1px solid var(--border);
+  border-radius: 0; /* edge-to-edge, no rounded corners */
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -487,25 +487,24 @@ img {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding-bottom: 20px;
+  padding-bottom: 16px;
 }
 
 .works-sidebar__avatar {
-  width: 120px;
-  height: 120px;
+  width: 80px;
+  height: 80px;
   border-radius: 10px;
   background: linear-gradient(145deg, var(--accent) 0%, var(--accent-dark) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 42px;
+  font-size: 28px;
   font-weight: 600;
   font-family: var(--font-noto-serif), 'Noto Serif', serif;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   flex-shrink: 0;
-  box-shadow: 0 6px 24px rgba(139, 111, 71, 0.25);
-  letter-spacing: -0.01em;
+  opacity: 0.9;
 }
 
 .works-sidebar__name {
@@ -1583,14 +1582,13 @@ img {
 .feed-card__title {
   font-family: var(--font-noto-serif), 'Noto Serif', serif;
   font-weight: 700;
-  font-size: 22px;
+  font-size: 20px;           /* slightly reduced to balance with bigger poem text */
   color: var(--text-primary);
   text-decoration: none;
   display: block;
   margin-bottom: 14px;
-  line-height: 1.3;
+  line-height: 1.35;
   transition: color 0.15s;
-  /* Fix title overflow from crawled data with stray newlines */
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -1602,14 +1600,12 @@ img {
 
 .feed-card__poem {
   font-family: var(--font-noto-serif), 'Noto Serif', serif;
-  font-size: 15px;
-  line-height: 1.75;
+  font-size: 16px;           /* was 15px — bigger, closer to Theater 18px */
+  line-height: 1.85;         /* was 1.75 — more spacious like Theater */
   color: var(--text-secondary);
   white-space: pre-wrap;
   word-break: break-word;
-  padding: 4px 8px 4px 14px;
-  border-left: 2px solid rgba(196, 164, 109, 0.3);
-  margin-left: 4px;
+  /* removed border-left quote decoration */
 }
 
 .feed-card__prose {
@@ -1673,25 +1669,15 @@ img {
    sidebar-left | feed | sidebar-right
    max-width + padding matches pub-header-inner exactly
    =========================== */
+/* Full-width layout — sidebars flush to viewport edges */
 .page-layout {
-  max-width: 1360px;
-  margin: 0 auto;
-  padding: 0 24px;
   display: flex;
-  gap: 24px;
   align-items: flex-start;
+  /* NO max-width, NO padding — sidebars go edge-to-edge */
 }
 
-/* Keep old names as aliases so existing pages don't break */
-.home-layout {
-  max-width: 1360px;
-  margin: 0 auto;
-  padding: 0 24px;
-  display: flex;
-  gap: 24px;
-  align-items: flex-start;
-}
-
+/* Legacy aliases */
+.home-layout,
 .works-layout {
   max-width: 1360px;
   margin: 0 auto;
@@ -1705,6 +1691,7 @@ img {
 .home-feed {
   flex: 1;
   min-width: 0;
+  padding: 0 32px; /* breathing room between sidebars and content */
 }
 
 .page-feed>.feed-layout,
@@ -1717,12 +1704,17 @@ img {
    RIGHT SIDEBAR — Collections
    =========================== */
 .home-right-sidebar {
-  width: 240px;
+  width: clamp(200px, 20vw, 280px); /* responsive width */
   flex-shrink: 0;
   position: sticky;
   top: 60px;
-  /* Flush with header */
-  padding-bottom: 48px;
+  height: calc(100vh - 60px);
+  overflow-y: auto;
+  padding: 20px 18px 48px;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .home-right-sidebar__title {
@@ -2961,19 +2953,27 @@ img {
     font-size: 14px;
   }
 
-  /* === PAGE LAYOUT — single column === */
+  /* === PAGE LAYOUT — single column on mobile === */
   .page-layout {
     flex-direction: column;
-    padding: 0;
     gap: 0;
   }
 
-  /* Left sidebar collapse → horizontal genre tabs */
+  /* Page feed: remove horizontal padding on mobile */
+  .page-feed,
+  .home-feed {
+    padding: 0;
+  }
+
+  /* Left sidebar collapse → hidden by default, shown as horizontal genre strip */
   .works-sidebar {
     width: 100%;
+    height: auto;
     position: static;
-    padding: 0 0 0;
-    background: none;
+    padding: 12px 16px 0;
+    background: var(--bg); /* seamless with page */
+    border-right: none;
+    border-bottom: 1px solid var(--border);
     border-radius: 0;
   }
 
