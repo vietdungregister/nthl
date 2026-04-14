@@ -25,10 +25,6 @@ const GENRE_LABELS: Record<string, string> = {
     prose: 'Văn xuôi',
 }
 
-const TIER_LABELS: Record<number, string> = {
-    3: 'Liên quan',
-    4: 'Gần đúng',
-}
 
 /** Highlight từ khóa trong text */
 function Highlight({ text, query }: { text: string; query: string }) {
@@ -220,24 +216,14 @@ export default function SearchClient() {
                 </div>
             )}
 
-            {/* Results count */}
-            {searched && !loading && (
+
+            {/* Semantic fallback label only */}
+            {searched && !loading && results.length > 0 && searchMode === 'semantic' && (
                 <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 14 }}>
-                    {results.length > 0 && searchMode === 'keyword' && (
-                        <>Tìm thấy <strong style={{ color: 'var(--text-primary)' }}>{results.length}</strong> kết quả cho &ldquo;{query}&rdquo;</>
-                    )}
-                    {results.length > 0 && searchMode === 'semantic' && (
-                        <span>
-                            Không có kết quả chính xác — hiển thị
-                            {' '}<strong style={{ color: 'var(--text-primary)' }}>{results.length}</strong>
-                            {' '}kết quả tương tự theo ngữ nghĩa 🔮
-                        </span>
-                    )}
-                    {results.length === 0 && (
-                        <>Không tìm thấy kết quả nào cho &ldquo;{query}&rdquo;</>
-                    )}
+                    Kết quả tương tự theo ngữ nghĩa 🔮
                 </div>
             )}
+
 
             {/* Results list */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -258,12 +244,12 @@ export default function SearchClient() {
                         onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent, #7c6af7)')}
                         onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border, #222)')}
                     >
-                        {/* Title with highlight */}
+                        {/* Title — plain text, no highlight */}
                         <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: work.matchedLines.length > 0 ? 8 : 6, lineHeight: 1.4 }}>
-                            <Highlight text={work.title} query={query} />
+                            {work.title}
                         </div>
 
-                        {/* Matched lines */}
+                        {/* Matched lines — plain text */}
                         {work.matchedLines.length > 0 && (
                             <div style={{
                                 borderLeft: '2px solid var(--accent, #7c6af7)',
@@ -272,7 +258,7 @@ export default function SearchClient() {
                             }}>
                                 {work.matchedLines.slice(0, 2).map((line, i) => (
                                     <div key={i} style={{ color: 'var(--text-secondary, #bbb)', fontSize: 13, fontStyle: 'italic', lineHeight: 1.6 }}>
-                                        &ldquo;<Highlight text={line} query={query} />&rdquo;
+                                        &ldquo;{line}&rdquo;
                                     </div>
                                 ))}
                             </div>
@@ -289,11 +275,6 @@ export default function SearchClient() {
                             }}>
                                 {GENRE_LABELS[work.genre] || work.genre}
                             </span>
-                            {work.tier >= 3 && TIER_LABELS[work.tier] && (
-                                <span style={{ fontSize: 11, color: 'var(--text-muted, #555)' }}>
-                                    {TIER_LABELS[work.tier]}
-                                </span>
-                            )}
                         </div>
                     </Link>
                 ))}

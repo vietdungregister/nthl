@@ -8,7 +8,7 @@ function sanitizeQuery(q: string): string {
     return q.replace(/[&|!():*<>@\\]/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
-/** Tách dòng thơ match query để highlight */
+/** Tách dòng thơ match query để hiển thị snippet */
 function extractMatchedLines(content: string, query: string): string[] {
     if (!content || !query) return []
     const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 1)
@@ -39,86 +39,75 @@ interface WorkRow {
     tier: number
 }
 
-// ── Main search function ───────────────────────────────────────────────────────
+// ── Progressive Phrase Search ─────────────────────────────────────────────────
 
-async function tieredSearch(query: string, genre?: string): Promise<WorkRow[]> {
+async function progressiveSearch(query: string, genre?: string): Promise<WorkRow[]> {
     const sanitized = sanitizeQuery(query)
     if (!sanitized) return []
 
+    const words = sanitized.split(/\s+/).filter(w => w.length > 0)
     const genreFilter = genre ? `AND genre = '${genre.replace(/'/g, "''")}'` : ''
     const baseWhere = `status = 'published' AND "deletedAt" IS NULL ${genreFilter}`
 
-    // ── TIER 1: Title exact match (highest priority) ──────────────────────────
-    const tier1: WorkRow[] = await prisma.$queryRawUnsafe(`
-        SELECT id, title, slug, genre, content, excerpt,
-               1 AS tier,
-               ts_rank("searchVector", plainto_tsquery('simple', unaccent($1))) + 10.0 AS rank
-        FROM "Work"
-        WHERE ${baseWhere}
-          AND "searchVector" IS NOT NULL
-          AND unaccent(lower(title)) ILIKE '%' || unaccent(lower($1)) || '%'
-        ORDER BY rank DESC
-        LIMIT 20
-    `, sanitized)
+    const allResults: WorkRow[] = []
+    const foundIds = new Set<string>()
 
-    const tier1ids = tier1.map(r => `'${r.id}'`).join(',') || "''"
+    // Progressive: thử cụm dài nhất trước, bỏ từ phải dần
+    // "một bài thơ hay" → "một bài thơ" → "bài thơ"
+    // Tối thiểu 2 từ
+    for (let len = words.length; len >= Math.min(2, words.length); len--) {
+        if (allResults.length >= 50) break  // short-circuit
 
-    // ── TIER 2: Content exact phrase match ────────────────────────────────────
-    const tier2: WorkRow[] = await prisma.$queryRawUnsafe(`
-        SELECT id, title, slug, genre, content, excerpt,
-               2 AS tier,
-               ts_rank("searchVector", plainto_tsquery('simple', unaccent($1))) + 5.0 AS rank
-        FROM "Work"
-        WHERE ${baseWhere}
-          AND "searchVector" IS NOT NULL
-          AND id NOT IN (${tier1ids})
-          AND unaccent(lower(content)) ILIKE '%' || unaccent(lower($1)) || '%'
-        ORDER BY rank DESC
-        LIMIT 30
-    `, sanitized)
+        const phrase = words.slice(0, len).join(' ')
+        const excludeList = foundIds.size > 0
+            ? `AND id NOT IN (${[...foundIds].map(id => `'${id}'`).join(',')})`
+            : ''
 
-    const tier1_2ids = [...tier1, ...tier2].map(r => `'${r.id}'`).join(',') || "''"
+        const rows: WorkRow[] = await prisma.$queryRawUnsafe(`
+            SELECT id, title, slug, genre, content, excerpt,
+                   ${words.length - len + 1} AS tier,
+                   similarity(unaccent(lower(title)), unaccent(lower($1))) AS rank
+            FROM "Work"
+            WHERE ${baseWhere}
+              AND "searchVector" IS NOT NULL
+              ${excludeList}
+              AND "searchVector" @@ phraseto_tsquery('simple', unaccent($2))
+            ORDER BY rank DESC
+            LIMIT ${50 - allResults.length}
+        `, sanitized, phrase)
 
-    // ── TIER 3: Full-text (tách từ, plainto_tsquery) ──────────────────────────
-    const tier3: WorkRow[] = await prisma.$queryRawUnsafe(`
-        SELECT id, title, slug, genre, content, excerpt,
-               3 AS tier,
-               ts_rank("searchVector", plainto_tsquery('simple', unaccent($1))) AS rank
-        FROM "Work"
-        WHERE ${baseWhere}
-          AND "searchVector" IS NOT NULL
-          AND id NOT IN (${tier1_2ids})
-          AND "searchVector" @@ plainto_tsquery('simple', unaccent($1))
-        ORDER BY rank DESC
-        LIMIT 30
-    `, sanitized)
+        rows.forEach(r => foundIds.add(r.id))
+        allResults.push(...rows)
+    }
 
-    const combined = [...tier1, ...tier2, ...tier3]
+    // ── Fuzzy fallback nếu ít kết quả (sai chính tả, thiếu dấu) ─────────────
+    if (allResults.length < 5) {
+        const excludeList = foundIds.size > 0
+            ? `AND id NOT IN (${[...foundIds].map(id => `'${id}'`).join(',')})`
+            : ''
 
-    // ── TIER 4: Fuzzy fallback (pg_trgm) nếu ít kết quả ─────────────────────
-    if (combined.length < 5) {
-        const allids = combined.map(r => `'${r.id}'`).join(',') || "''"
         const fuzzy: WorkRow[] = await prisma.$queryRawUnsafe(`
             SELECT id, title, slug, genre, content, excerpt,
-                   4 AS tier,
+                   99 AS tier,
                    GREATEST(
                      similarity(unaccent(lower(title)), unaccent(lower($1))),
-                     similarity(unaccent(lower(content)), unaccent(lower($1))) * 0.7
+                     similarity(unaccent(lower(content)), unaccent(lower($1))) * 0.5
                    ) AS rank
             FROM "Work"
             WHERE ${baseWhere}
-              AND id NOT IN (${allids})
+              ${excludeList}
               AND (
-                similarity(unaccent(lower(title)), unaccent(lower($1))) > 0.25
-                OR similarity(unaccent(lower(content)), unaccent(lower($1))) > 0.20
+                similarity(unaccent(lower(title)), unaccent(lower($1))) > 0.2
+                OR similarity(unaccent(lower(content)), unaccent(lower($1))) > 0.15
               )
             ORDER BY rank DESC
-            LIMIT 10
+            LIMIT ${10 - allResults.length}
         `, sanitized)
-        combined.push(...fuzzy)
+
+        allResults.push(...fuzzy)
     }
 
-    return combined
+    return allResults
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────────
@@ -136,21 +125,25 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Query quá dài' }, { status: 400 })
         }
 
-        const rows = await tieredSearch(q, genre)
+        const rows = await progressiveSearch(q, genre)
 
-        // Build results with matched lines for highlighting
         const works = rows.map(row => ({
             id: row.id,
             title: row.title,
             slug: row.slug,
             genre: row.genre,
             excerpt: row.excerpt,
-            tier: row.tier,
-            rank: row.rank,
+            tier: Number(row.tier),
+            rank: Number(row.rank),
             matchedLines: extractMatchedLines(row.content || '', q),
         }))
 
-        console.log(`[Search] "${q}" → ${works.length} results (T1:${rows.filter(r=>r.tier===1).length} T2:${rows.filter(r=>r.tier===2).length} T3:${rows.filter(r=>r.tier===3).length} T4:${rows.filter(r=>r.tier===4).length})`)
+        const tierBreakdown = works.reduce((acc, w) => {
+            acc[w.tier] = (acc[w.tier] || 0) + 1
+            return acc
+        }, {} as Record<number, number>)
+
+        console.log(`[Search] "${q}" → ${works.length} results`, tierBreakdown)
 
         return NextResponse.json({ works, query: q, total: works.length })
     } catch (error) {
