@@ -25,7 +25,6 @@ const GENRE_LABELS: Record<string, string> = {
     prose: 'Văn xuôi',
 }
 
-
 /** Highlight từ khóa trong text */
 function Highlight({ text, query }: { text: string; query: string }) {
     if (!query || !text) return <>{text}</>
@@ -41,7 +40,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
         <>
             {parts.map((part, i) =>
                 pattern.test(part)
-                    ? <mark key={i} style={{ background: 'rgba(124,106,247,0.3)', color: 'inherit', borderRadius: 2, padding: '0 1px' }}>{part}</mark>
+                    ? <mark key={i} className="sc__highlight">{part}</mark>
                     : part
             )}
         </>
@@ -69,7 +68,6 @@ export default function SearchClient() {
         setSearched(true)
         setSearchMode('keyword')
         try {
-            // Step 1: Keyword search
             const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
             const data = await res.json()
             const keywordResults = data.works || []
@@ -78,7 +76,6 @@ export default function SearchClient() {
                 setResults(keywordResults)
                 setSearchMode('keyword')
             } else {
-                // Step 2: AI semantic fallback khi keyword search không ra kết quả
                 setSearchMode('semantic')
                 try {
                     const aiRes = await fetch('/api/ai-search', {
@@ -99,7 +96,6 @@ export default function SearchClient() {
         }
     }, [])
 
-    // Search on initial query from URL
     useEffect(() => {
         if (initialQuery) doSearch(initialQuery)
         inputRef.current?.focus()
@@ -126,9 +122,9 @@ export default function SearchClient() {
     }
 
     return (
-        <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 4px' }}>
+        <div className="sc__wrap">
             {/* Search form */}
-            <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
+            <form onSubmit={handleSubmit} className="sc__form">
                 <input
                     ref={inputRef}
                     id="search-input"
@@ -137,32 +133,13 @@ export default function SearchClient() {
                     onChange={e => setQuery(e.target.value)}
                     placeholder="Tìm bài thơ, câu thơ, từ khóa..."
                     autoComplete="off"
-                    style={{
-                        flex: 1,
-                        padding: '10px 14px',
-                        borderRadius: 8,
-                        border: '1px solid var(--border, #333)',
-                        background: 'var(--surface, #111)',
-                        color: 'var(--text-primary, #eee)',
-                        fontSize: 15,
-                        outline: 'none',
-                    }}
+                    className="search-box sc__input"
                 />
                 <button
                     id="search-submit"
                     type="submit"
                     disabled={loading}
-                    style={{
-                        padding: '10px 18px',
-                        borderRadius: 8,
-                        border: 'none',
-                        background: 'var(--accent, #7c6af7)',
-                        color: '#fff',
-                        fontWeight: 600,
-                        cursor: loading ? 'wait' : 'pointer',
-                        fontSize: 14,
-                        minWidth: 64,
-                    }}
+                    className="btn btn--primary"
                 >
                     {loading ? '...' : 'Tìm'}
                 </button>
@@ -172,16 +149,7 @@ export default function SearchClient() {
                     onClick={handleRandom}
                     disabled={randomLoading}
                     title="Thơ ngẫu nhiên"
-                    style={{
-                        padding: '10px 14px',
-                        borderRadius: 8,
-                        border: '1px solid var(--border, #333)',
-                        background: 'transparent',
-                        color: 'var(--text-muted, #888)',
-                        cursor: randomLoading ? 'wait' : 'pointer',
-                        fontSize: 18,
-                        lineHeight: 1,
-                    }}
+                    className="btn btn--ghost sc__dice-btn"
                 >
                     🎲
                 </button>
@@ -189,90 +157,48 @@ export default function SearchClient() {
 
             {/* Random poem card */}
             {randomWork && (
-                <div style={{
-                    marginBottom: 24,
-                    padding: '14px 16px',
-                    borderRadius: 10,
-                    border: '1px dashed var(--accent, #7c6af7)',
-                    background: 'var(--surface, #111)',
-                }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
-                        🎲 Thơ ngẫu nhiên
-                    </div>
-                    <Link href={`/tac-pham/${randomWork.slug}`} style={{ color: 'var(--text-primary)', textDecoration: 'none' }}>
-                        <div style={{ fontWeight: 600, marginBottom: 4 }}>{randomWork.title}</div>
+                <div className="sc__random-card">
+                    <div className="meta sc__random-label">🎲 Thơ ngẫu nhiên</div>
+                    <Link href={`/tac-pham/${randomWork.slug}`} className="sc__random-link">
+                        <div className="sc__random-title">{randomWork.title}</div>
                         {randomWork.excerpt && (
-                            <div style={{ color: 'var(--text-muted)', fontSize: 13, fontStyle: 'italic', lineHeight: 1.6 }}>
+                            <div className="sc__random-excerpt">
                                 {randomWork.excerpt.slice(0, 120)}{randomWork.excerpt.length > 120 ? '...' : ''}
                             </div>
                         )}
                     </Link>
-                    <button
-                        onClick={handleRandom}
-                        style={{ marginTop: 10, background: 'none', border: 'none', color: 'var(--accent, #7c6af7)', cursor: 'pointer', fontSize: 12, padding: 0 }}
-                    >
-                        → Bài khác
-                    </button>
+                    <button onClick={handleRandom} className="sc__random-more">→ Bài khác</button>
                 </div>
             )}
 
-
-            {/* Semantic fallback label only */}
+            {/* Semantic fallback label */}
             {searched && !loading && results.length > 0 && searchMode === 'semantic' && (
-                <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 14 }}>
-                    Kết quả tương tự theo ngữ nghĩa 🔮
-                </div>
+                <div className="sc__mode-label">Kết quả tương tự theo ngữ nghĩa 🔮</div>
             )}
-
 
             {/* Results list */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="sc__results">
                 {results.map(work => (
                     <Link
                         key={work.id}
                         href={`/tac-pham/${work.slug}`}
                         id={`result-${work.id}`}
-                        style={{
-                            display: 'block',
-                            padding: '12px 14px',
-                            borderRadius: 10,
-                            border: '1px solid var(--border, #222)',
-                            background: 'var(--surface, #111)',
-                            textDecoration: 'none',
-                            transition: 'border-color 0.15s',
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent, #7c6af7)')}
-                        onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border, #222)')}
+                        className="sc__result-card card card--interactive"
                     >
-                        {/* Title — plain text, no highlight */}
-                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: work.matchedLines.length > 0 ? 8 : 6, lineHeight: 1.4 }}>
-                            {work.title}
-                        </div>
+                        <div className="sc__result-title">{work.title}</div>
 
-                        {/* Matched lines — plain text */}
                         {work.matchedLines.length > 0 && (
-                            <div style={{
-                                borderLeft: '2px solid var(--accent, #7c6af7)',
-                                paddingLeft: 10,
-                                marginBottom: 8,
-                            }}>
+                            <div className="sc__result-lines">
                                 {work.matchedLines.slice(0, 2).map((line, i) => (
-                                    <div key={i} style={{ color: 'var(--text-secondary, #bbb)', fontSize: 13, fontStyle: 'italic', lineHeight: 1.6 }}>
-                                        &ldquo;{line}&rdquo;
+                                    <div key={i} className="sc__result-line">
+                                        &ldquo;<Highlight text={line} query={query} />&rdquo;
                                     </div>
                                 ))}
                             </div>
                         )}
 
-                        {/* Meta row */}
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <span style={{
-                                fontSize: 11,
-                                padding: '2px 7px',
-                                borderRadius: 4,
-                                background: 'rgba(255,255,255,0.06)',
-                                color: 'var(--text-muted)',
-                            }}>
+                        <div className="sc__result-meta">
+                            <span className="sc__genre-badge">
                                 {GENRE_LABELS[work.genre] || work.genre}
                             </span>
                         </div>
@@ -282,29 +208,18 @@ export default function SearchClient() {
 
             {/* Empty state */}
             {searched && !loading && results.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
-                    <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
-                    <div style={{ marginBottom: 6 }}>Không tìm thấy kết quả cho &ldquo;{query}&rdquo;</div>
-                    <div style={{ fontSize: 13, opacity: 0.7 }}>Thử từ khóa khác hoặc bấm 🎲 để khám phá ngẫu nhiên</div>
+                <div className="sc__empty">
+                    <div className="sc__empty-icon">🔍</div>
+                    <div className="sc__empty-msg">Không tìm thấy kết quả cho &ldquo;{query}&rdquo;</div>
+                    <div className="sc__empty-hint">Thử từ khóa khác hoặc bấm 🎲 để khám phá ngẫu nhiên</div>
                 </div>
             )}
 
-            {/* Initial state — no search yet */}
+            {/* Initial state */}
             {!searched && !randomWork && (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
-                    <div style={{ fontSize: 13, marginBottom: 12 }}>Nhập từ khóa để tìm kiếm, hoặc</div>
-                    <button
-                        onClick={handleRandom}
-                        style={{
-                            padding: '8px 20px',
-                            borderRadius: 8,
-                            border: '1px solid var(--border, #333)',
-                            background: 'transparent',
-                            color: 'var(--text-primary)',
-                            cursor: 'pointer',
-                            fontSize: 14,
-                        }}
-                    >
+                <div className="sc__initial">
+                    <div className="sc__initial-hint">Nhập từ khóa để tìm kiếm, hoặc</div>
+                    <button onClick={handleRandom} className="btn btn--ghost">
                         🎲 Khám phá thơ ngẫu nhiên
                     </button>
                 </div>

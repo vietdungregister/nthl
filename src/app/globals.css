@@ -976,6 +976,148 @@ img {
 }
 
 /* ===========================
+   SEARCH CLIENT — /tim-kiem
+   =========================== */
+.sc__wrap {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 4px;
+}
+
+.sc__form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.sc__input { flex: 1; font-size: 15px; }
+
+.sc__dice-btn { font-size: 18px; line-height: 1; padding: 10px 14px; }
+
+/* Random poem card */
+.sc__random-card {
+  margin-bottom: 24px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px dashed rgba(196,164,109,0.45);
+  background: var(--surface);
+}
+.sc__random-label {
+  margin-bottom: 8px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+}
+.sc__random-link { text-decoration: none; color: var(--text-primary); }
+.sc__random-link:hover .sc__random-title { color: var(--accent); }
+.sc__random-title { font-weight: 600; margin-bottom: 4px; font-size: 15px; }
+.sc__random-excerpt { color: var(--text-muted); font-size: 13px; font-style: italic; line-height: 1.6; }
+.sc__random-more {
+  margin-top: 10px;
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  font-family: inherit;
+}
+.sc__random-more:hover { color: var(--accent-dark); }
+
+/* Mode label */
+.sc__mode-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  font-family: var(--font-inter), 'Inter', sans-serif;
+}
+
+/* Results */
+.sc__results { display: flex; flex-direction: column; gap: 10px; }
+
+.sc__result-card {
+  display: block;
+  padding: 12px 14px;
+  text-decoration: none;
+}
+
+.sc__result-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  line-height: 1.4;
+  font-family: var(--font-noto-serif), 'Noto Serif', serif;
+  font-size: 15px;
+}
+
+.sc__result-lines {
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+  margin-bottom: 8px;
+}
+
+.sc__result-line {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.6;
+  font-family: var(--font-noto-serif), 'Noto Serif', serif;
+}
+
+.sc__result-meta { display: flex; gap: 8px; align-items: center; }
+
+.sc__genre-badge {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.06);
+  color: var(--text-muted);
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-weight: 500;
+}
+
+.sc__highlight {
+  background: rgba(196,164,109,0.25);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* Empty / initial states */
+.sc__empty, .sc__initial {
+  text-align: center;
+  padding: 40px 0;
+  color: var(--text-muted);
+  font-family: var(--font-inter), 'Inter', sans-serif;
+}
+.sc__empty-icon { font-size: 32px; margin-bottom: 12px; }
+.sc__empty-msg { margin-bottom: 6px; font-size: 14px; }
+.sc__empty-hint { font-size: 13px; opacity: 0.7; }
+.sc__initial-hint { font-size: 13px; margin-bottom: 12px; }
+
+/* ===========================
+   VIEW TRANSITIONS — page fade
+   =========================== */
+@keyframes vt-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes vt-fade-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) {
+    animation: 0.25s ease both vt-fade-out;
+  }
+  ::view-transition-new(root) {
+    animation: 0.25s ease both vt-fade-in;
+  }
+}
+
+/* ===========================
    PUBLIC FOOTER
    =========================== */
 .pub-footer {

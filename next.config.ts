@@ -20,6 +20,10 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   // Bật gzip/brotli compression cho tất cả responses
   compress: true,
+  // View Transitions API — smooth page-to-page fade animation
+  experimental: {
+    viewTransition: true,
+  },
   // Tối ưu hình ảnh: chuyển sang WebP/AVIF, lazy load, responsive srcset
   images: {
     formats: ['image/avif', 'image/webp'],
