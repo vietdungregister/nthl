@@ -7,14 +7,6 @@ export const dynamic = 'force-dynamic'
 
 const TEXT_GENRES = ['poem']  // chỉ thơ cho theater
 
-/** Strip title từ đầu content nếu content bắt đầu bằng title */
-function stripTitle(content: string, title: string): string {
-  const normalized = content.trimStart()
-  if (normalized.toLowerCase().startsWith(title.toLowerCase())) {
-    return normalized.slice(title.length).replace(/^[\s\n]+/, '')
-  }
-  return normalized
-}
 
 export async function GET(request: Request) {
   try {
@@ -44,8 +36,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    // Clean content — fix split Vietnamese syllables from crawled data
-    const cleanContent = stripTitle(work.content, work.title)
+    const cleanContent = work.content.trimStart()
       .split('\n').map(l => fixSplitVietnamese(l)).join('\n')
 
     // Đếm số dòng không rỗng (thơ)

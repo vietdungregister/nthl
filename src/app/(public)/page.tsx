@@ -5,14 +5,6 @@ import PoemTheater from '@/components/public/PoemTheater'
 
 export const dynamic = 'force-dynamic'
 
-/** Strip title from start of content if present */
-function stripTitle(content: string, title: string): string {
-  const normalized = content.trimStart()
-  if (normalized.toLowerCase().startsWith(title.toLowerCase())) {
-    return normalized.slice(title.length).replace(/^[\s\n]+/, '')
-  }
-  return normalized
-}
 
 export default async function HomePage() {
   type TheaterWork = { id: string; title: string; slug: string; genre: string; content: string; writtenAt: Date | null }
@@ -43,7 +35,7 @@ export default async function HomePage() {
     slug: rawTheater.slug,
     genre: rawTheater.genre,
     genreLabel: genreLabels[rawTheater.genre] ?? rawTheater.genre,
-    content: stripTitle(rawTheater.content, rawTheater.title)
+    content: rawTheater.content.trimStart()
       .split('\n').map((l: string) => fixSplitVietnamese(l)).join('\n'),
     lineCount: rawTheater.content.split('\n').filter((l: string) => l.trim()).length,
     writtenAt: rawTheater.writtenAt ? new Date(rawTheater.writtenAt).toISOString().slice(0, 10) : null,

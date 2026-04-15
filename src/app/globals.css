@@ -164,12 +164,12 @@ img {
 .pill:hover { color: var(--text-primary); border-color: rgba(255,255,255,0.12); background: var(--surface-hover); }
 .pill--active { background: var(--surface-hover); border-color: rgba(196,164,109,0.4); color: var(--accent); font-weight: 600; }
 
-/* Sidebar search box — prominent style like mini-app */
+/* Sidebar search box — prominent dark box with strong border */
 .search-box {
   width: 100%;
   padding: 10px 12px;
-  background: var(--input-bg);
-  border: 1px solid var(--border);
+  background: #1C1B19;       /* hard-coded dark, clearly visible */
+  border: 1px solid rgba(255,255,255,0.18); /* stronger border */
   border-radius: 10px;
   font-family: var(--font-noto-serif), 'Noto Serif', serif;
   font-size: 14px;
@@ -178,8 +178,8 @@ img {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .search-box:focus {
-  border-color: rgba(196, 164, 109, 0.5);
-  box-shadow: 0 0 0 2px rgba(196, 164, 109, 0.08);
+  border-color: rgba(196, 164, 109, 0.6);
+  box-shadow: 0 0 0 2px rgba(196, 164, 109, 0.1);
 }
 .search-box::placeholder { color: var(--text-muted); }
 
@@ -758,6 +758,7 @@ img {
   gap: 4px;
   margin-bottom: 16px;
   transition: color 0.15s;
+  /* No centering — stays left */
 }
 
 .reading-back:hover {
@@ -765,20 +766,26 @@ img {
 }
 
 .reading-meta {
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  color: var(--text-muted);
   margin-bottom: 24px;
+  text-align: center; /* match Theater author label */
 }
 
 .reading-card {
+  max-width: 560px;  /* match theater__content max-width */
+  margin: 0 auto;    /* center within page-feed */
   background: transparent;
   border: none;
   border-radius: 0;
-  padding: 40px 0 56px;
+  padding: 0 0 56px;
   box-shadow: none;
   position: relative;
+  text-align: center; /* center like theater__content */
 }
 
 .reading-card::before {
@@ -792,11 +799,10 @@ img {
 .reading-card__title {
   font-family: var(--font-noto-serif), 'Noto Serif', serif;
   font-weight: 700;
-  font-size: 24px;
+  font-size: 22px;    /* match theater__title 22px */
   color: var(--text-primary);
-  text-align: left;
-  margin-bottom: 24px;
-  padding-top: 0;
+  text-align: center; /* match Theater */
+  margin-bottom: 28px;
   line-height: 1.4;
 }
 
@@ -954,22 +960,22 @@ img {
 }
 .reading-card__media { margin-bottom: 24px; }
 
-/* Reading poem — match Theater font size */
+/* Reading poem — match Theater style exactly */
 .reading-card__poem {
   font-family: var(--font-noto-serif), 'Noto Serif', serif;
-  font-size: 18px;      /* was 17px — match Theater */
-  line-height: 1.8;     /* was 1.75 — match Theater */
-  color: var(--text-primary);
+  font-size: 17px;      /* matches .theater__body--poem */
+  line-height: 1.8;     /* matches Theater */
+  color: var(--text-secondary); /* matches .theater__body color */
   white-space: pre-wrap;
   text-align: left;
 }
 
-/* Reading prose — match Theater font size */
+/* Reading prose — match Theater style */
 .reading-card__prose {
-  font-family: var(--font-noto-serif), 'Noto Serif', serif;
-  font-size: 18px;      /* was 17px */
-  line-height: 1.8;
-  color: var(--text-primary);
+  font-family: 'Lora', serif;
+  font-size: 16px;      /* matches .theater__body--prose */
+  line-height: 1.9;
+  color: var(--text-secondary);
   white-space: pre-wrap;
   word-wrap: break-word;
   text-align: left;
@@ -1538,34 +1544,35 @@ img {
   gap: 5px;
 }
 
-/* Genre chip */
+/* Genre chip — strong contrast for visibility on dark sidebar */
 .snav__genre-chip {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 36px;
+  height: 34px;
   padding: 0 4px;
-  font-family: var(--font-noto-serif), 'Noto Serif', serif;
+  font-family: var(--font-inter), 'Inter', sans-serif;
   font-size: 11px;
+  font-weight: 500;
   line-height: 1.2;
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.55);       /* clearly visible text */
   text-decoration: none;
   text-align: center;
   border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--input-bg);
+  border: 1px solid rgba(255,255,255,0.18); /* strong border */
+  background: rgba(255,255,255,0.05);   /* faint but clearly != sidebar */
   transition: all 0.15s;
 }
 .snav__genre-chip:hover {
-  color: var(--text-primary);
-  border-color: rgba(255,255,255,0.12);
-  background: var(--surface-hover);
+  color: rgba(255,255,255,0.9);
+  border-color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.1);
 }
 .snav__genre-chip--active {
   color: var(--accent);
-  border-color: rgba(196,164,109,0.35);
-  background: rgba(196,164,109,0.07);
-  font-weight: 600;
+  border-color: rgba(196,164,109,0.5);
+  background: rgba(196,164,109,0.12);
+  font-weight: 700;
 }
 
 /* Recent works list */
@@ -1918,14 +1925,12 @@ img {
    sidebar-left | feed | sidebar-right
    max-width + padding matches pub-header-inner exactly
    =========================== */
-/* Full-width layout with contained center content */
+/* EDGE-TO-EDGE layout: sidebars flush to viewport, center content contained */
 .page-layout {
-  max-width: 1360px;
-  margin: 0 auto;
-  padding: 0 24px;
   display: flex;
-  gap: 24px;
   align-items: flex-start;
+  width: 100%;
+  /* NO max-width — let sidebars reach viewport edges */
 }
 
 /* Legacy aliases */
@@ -1943,12 +1948,13 @@ img {
 .home-feed {
   flex: 1;
   min-width: 0;
+  padding: 0 28px;  /* replaces the old gap:24px from page-layout */
 }
 
 .page-feed>.feed-layout,
 .home-feed>.feed-layout {
   padding: 0;
-  max-width: none;
+  max-width: 720px; /* constrain center feed for reading comfort */
 }
 
 /* ===========================
